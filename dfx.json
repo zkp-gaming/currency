@@ -1,0 +1,52 @@
+{
+  "dfx": "0.27.0",
+  "version": 1,
+  "output_env_file": ".env",
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "canisters": {
+    "ckbtc_minter": {
+      "type": "custom",
+      "candid": "target/ic/ckbtc_minter.did",
+      "wasm": "target/ic/ckbtc_minter.wasm",
+      "specified_id": "mqygn-kiaaa-aaaar-qaadq-cai"
+    },
+    "ckbtc_ledger": {
+      "type": "custom",
+      "candid": "target/ic/ckbtc_ledger.did",
+      "wasm": "target/ic/ckbtc_ledger.wasm",
+      "specified_id": "mxzaz-hqaaa-aaaar-qaada-cai"
+    },
+    "ckbtc_index": {
+      "type": "custom",
+      "candid": "target/ic/ckbtc_index.did",
+      "wasm": "target/ic/ckbtc_index.wasm",
+      "specified_id": "n5wcd-faaaa-aaaar-qaaea-cai"
+    },
+    "ckbtc_kyt": {
+      "type": "custom",
+      "candid": "target/ic/ckbtc_kyt.did",
+      "wasm": "target/ic/ckbtc_kyt.wasm",
+      "specified_id": "pjihx-aaaaa-aaaar-qaaka-cai"
+    },
+    "ic_siws_provider": {
+      "candid": "https://github.com/kristoferlund/ic-siws/releases/download/v0.1.0/ic_siws_provider.did",
+      "declarations": {
+        "output": "declarations/ic_siws_provider"
+      },
+      "type": "custom",
+      "wasm": "https://github.com/kristoferlund/ic-siws/releases/download/v0.1.0/ic_siws_provider.wasm.gz",
+      "specified_id": "uxrrr-q7777-77774-qaaaq-cai"
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:4943",
+      "type": "ephemeral"
+    }
+  }
+}
