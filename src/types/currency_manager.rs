@@ -56,6 +56,12 @@ pub struct CurrencyManager {
     pub generic_icrc1_tokens: Vec<GenericICRC1TokenWallet>,
 }
 
+impl Default for CurrencyManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CurrencyManager {
     pub fn new() -> Self {
         Self {

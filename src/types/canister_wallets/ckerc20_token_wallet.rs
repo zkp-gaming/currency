@@ -3,7 +3,7 @@ use crate::{
         EventPayload, GetEventsArg, GetEventsRet, LedgerError, MinterInfo, TxFinalizedStatus,
         WithdrawErc20Arg, WithdrawErc20Error, WithdrawErc20Ret, WithdrawalDetail,
         WithdrawalSearchParameter, WithdrawalStatus,
-    }, ckusdc_canister_interface::{Approve}, currency_error::CurrencyError, icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError}, transfer::transfer_icrc1
+    }, currency_error::CurrencyError, icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError}, transfer::transfer_icrc1
 };
 use candid::{CandidType, Principal};
 use serde::{Deserialize, Serialize};
@@ -378,7 +378,7 @@ impl CKERC20TokenWallet {
             amount,
             expected_allowance: None,
             expires_at: None,
-            fee: Some(self.config.fee as u128),
+            fee: Some(self.config.fee),
             memo: None,
             from_subaccount: None,
             created_at_time: Some(ic_cdk::api::time()),

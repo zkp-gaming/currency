@@ -232,7 +232,7 @@ impl CKBTCTokenWallet {
             amount,
             expected_allowance: None,
             expires_at: None,
-            fee: Some(self.config.fee as u128),
+            fee: Some(self.config.fee),
             memo: None,
             from_subaccount: None,
             created_at_time: Some(ic_cdk::api::time()),

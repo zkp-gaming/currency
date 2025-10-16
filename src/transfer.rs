@@ -67,7 +67,7 @@ pub async fn transfer_icrc1(
             subaccount: Some(default_subaccount),
         },
         fee,
-        amount: (amount as u128 - fee.unwrap_or(ic_ledger_types::DEFAULT_FEE.e8s().into())).into(),
+        amount: (amount as u128 - fee.unwrap_or(ic_ledger_types::DEFAULT_FEE.e8s().into())),
         memo: None,
         from_subaccount: None,
         created_at_time: ic_cdk::api::time().into(),
