@@ -64,3 +64,28 @@ pub enum TransferFromError {
     TemporarilyUnavailable,
     GenericError { error_code: u128, message: String },
 }
+
+#[derive(CandidType, Deserialize)]
+pub struct ApproveArgs {
+    pub spender: Account,
+    pub amount: u128,
+    pub expected_allowance: Option<u128>,
+    pub expires_at: Option<u64>,
+    pub fee: Option<u128>,
+    pub memo: Option<Vec<u8>>,
+    pub from_subaccount: Option<Vec<u8>>,
+    pub created_at_time: Option<u64>,
+}
+
+#[derive(CandidType, Deserialize, Debug)]
+pub enum ApproveError {
+    BadFee { expected_fee: u128 },
+    InsufficientFunds { balance: u128 },
+    AllowanceChanged { current_allowance: u128 },
+    Expired { ledger_time: u64 },
+    TooOld,
+    CreatedInFuture { ledger_time: u64 },
+    Duplicate { duplicate_of: u128 },
+    TemporarilyUnavailable,
+    GenericError { error_code: u128, message: String },
+}

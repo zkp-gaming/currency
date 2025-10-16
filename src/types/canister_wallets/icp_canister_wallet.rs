@@ -1,6 +1,6 @@
 use crate::{
     currency_error::CurrencyError,
-    icrc1_types::{Account, Allowance, AllowanceArgs, TransferFromArg, TransferFromError},
+    icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError},
     transfer::transfer_icp,
 };
 use candid::{CandidType, Principal};
@@ -78,6 +78,36 @@ impl ICPCanisterWallet {
                 }
                 _ => Err(CurrencyError::TransferFromFailed(format!("{:?}", e))),
             },
+        }
+    }
+
+    pub async fn approve(
+        &self,
+        spender: Principal,
+        amount: u128,
+    ) -> Result<(), CurrencyError> {
+        let approve_args = ApproveArgs {
+            spender: Account {
+                owner: spender,
+                subaccount: None,
+            },
+            amount,
+            expected_allowance: None,
+            expires_at: None,
+            fee: Some(ic_ledger_types::DEFAULT_FEE.e8s() as u128),
+            memo: None,
+            from_subaccount: None,
+            created_at_time: Some(ic_cdk::api::time()),
+        };
+
+        let (result,): (Result<u128, ApproveError>,) =
+            ic_cdk::call(MAINNET_LEDGER_CANISTER_ID, "icrc2_approve", (approve_args,))
+                .await
+                .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(CurrencyError::ApproveFailed(format!("{:?}", e))),
         }
     }
 }

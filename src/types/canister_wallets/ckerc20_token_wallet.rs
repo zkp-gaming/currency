@@ -3,10 +3,7 @@ use crate::{
         EventPayload, GetEventsArg, GetEventsRet, LedgerError, MinterInfo, TxFinalizedStatus,
         WithdrawErc20Arg, WithdrawErc20Error, WithdrawErc20Ret, WithdrawalDetail,
         WithdrawalSearchParameter, WithdrawalStatus,
-    },
-    currency_error::CurrencyError,
-    icrc1_types::{Account, Allowance, AllowanceArgs, TransferFromArg, TransferFromError},
-    transfer::transfer_icrc1,
+    }, ckusdc_canister_interface::{Approve}, currency_error::CurrencyError, icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError}, transfer::transfer_icrc1
 };
 use candid::{CandidType, Principal};
 use serde::{Deserialize, Serialize};
@@ -364,6 +361,37 @@ impl CKERC20TokenWallet {
                 }
                 _ => Err(CurrencyError::TransferFromFailed(format!("{:?}", e))),
             },
+        }
+    }
+
+    pub async fn approve(
+        &self,
+        ledger: Principal,
+        spender: Principal,
+        amount: u128,
+    ) -> Result<(), CurrencyError> {
+        let approve_args = ApproveArgs {
+            spender: Account {
+                owner: spender,
+                subaccount: None,
+            },
+            amount,
+            expected_allowance: None,
+            expires_at: None,
+            fee: Some(self.config.fee as u128),
+            memo: None,
+            from_subaccount: None,
+            created_at_time: Some(ic_cdk::api::time()),
+        };
+
+        let (result,): (Result<u128, ApproveError>,) =
+            ic_cdk::call(ledger, "icrc2_approve", (approve_args,))
+                .await
+                .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(CurrencyError::ApproveFailed(format!("{:?}", e))),
         }
     }
 

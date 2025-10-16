@@ -1,6 +1,6 @@
 use crate::{
     currency_error::CurrencyError,
-    icrc1_types::{Account, Allowance, AllowanceArgs, TransferFromArg, TransferFromError},
+    icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError},
     state::TransactionState,
     transfer::transfer_icrc1,
     types::canister_wallet::CanisterWallet,
@@ -162,6 +162,42 @@ impl GenericICRC1TokenWallet {
                 }
                 _ => Err(CurrencyError::TransferFromFailed(format!("{:?}", e))),
             },
+        }
+    }
+
+    pub async fn approve(
+        &self,
+        spender: Principal,
+        amount: u128,
+    ) -> Result<(), CurrencyError> {
+        if !self.supports_icrc2() {
+            return Err(CurrencyError::OperationNotSupported(
+                format!("Token {} does not support ICRC-2 (approve) operations", self.metadata.symbol)
+            ));
+        }
+
+        let approve_args = ApproveArgs {
+            spender: Account {
+                owner: spender,
+                subaccount: None,
+            },
+            amount,
+            expected_allowance: None,
+            expires_at: None,
+            fee: Some(self.metadata.fee),
+            memo: None,
+            from_subaccount: None,
+            created_at_time: Some(ic_cdk::api::time()),
+        };
+
+        let (result,): (Result<u128, ApproveError>,) =
+            ic_cdk::call(self.ledger_id, "icrc2_approve", (approve_args,))
+                .await
+                .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(CurrencyError::ApproveFailed(format!("{:?}", e))),
         }
     }
 }

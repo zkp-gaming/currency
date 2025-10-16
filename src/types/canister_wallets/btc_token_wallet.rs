@@ -2,6 +2,7 @@ use crate::{
     ckbtc_ledger_canister_interface::{
         Account, Allowance, AllowanceArgs, TransferFromArgs, TransferFromError,
     },
+    icrc1_types::{ApproveArgs, ApproveError},
     ckbtc_minter_canister_interface::{UpdateBalanceError, UpdateBalanceRet},
     currency_error::CurrencyError,
     transfer::transfer_icrc1,
@@ -215,6 +216,36 @@ impl CKBTCTokenWallet {
                 };
                 Err(CurrencyError::LedgerError(error_msg))
             }
+        }
+    }
+
+    pub async fn approve(
+        &self,
+        spender: Principal,
+        amount: u128,
+    ) -> Result<(), CurrencyError> {
+        let approve_args = ApproveArgs {
+            spender: crate::icrc1_types::Account {
+                owner: spender,
+                subaccount: None,
+            },
+            amount,
+            expected_allowance: None,
+            expires_at: None,
+            fee: Some(self.config.fee as u128),
+            memo: None,
+            from_subaccount: None,
+            created_at_time: Some(ic_cdk::api::time()),
+        };
+
+        let (result,): (Result<u128, ApproveError>,) =
+            ic_cdk::call(self.config.ledger_id, "icrc2_approve", (approve_args,))
+                .await
+                .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+
+        match result {
+            Ok(_) => Ok(()),
+            Err(e) => Err(CurrencyError::ApproveFailed(format!("{:?}", e))),
         }
     }
 }

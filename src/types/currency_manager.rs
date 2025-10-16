@@ -323,4 +323,38 @@ impl CurrencyManager {
             }
         }
     }
+
+    pub async fn approve_allowance(
+        &self,
+        currency: &Currency,
+        spender_principal: Principal,
+        amount: u128,
+    ) -> Result<(), CurrencyError> {
+        match currency {
+            Currency::ICP => match &self.icp {
+                Some(wallet) => wallet.approve(spender_principal, amount).await,
+                None => Err(CurrencyError::WalletNotSet),
+            },
+            Currency::CKETHToken(token) => {
+                let wallet = self
+                    .ckerc20_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKETHToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet.approve(wallet.config.ledger_id, spender_principal, amount).await
+            }
+            Currency::BTC => match &self.btc {
+                Some(wallet) => wallet.approve(spender_principal, amount).await,
+                None => Err(CurrencyError::WalletNotSet),
+            },
+            Currency::GenericICRC1(token) => {
+                let wallet = self
+                    .generic_icrc1_tokens
+                    .iter()
+                    .find(|w| w.metadata.symbol == token.symbol_to_string())
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet.approve(spender_principal, amount).await
+            }
+        }
+    }
 }
