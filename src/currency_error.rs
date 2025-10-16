@@ -70,4 +70,7 @@ pub enum CurrencyError {
 
     #[error("Operation not supported: {0}")]
     OperationNotSupported(String),
+
+    #[error("Approve failed: {0}")]
+    ApproveFailed(String),
 }
