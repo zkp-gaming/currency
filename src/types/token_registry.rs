@@ -120,6 +120,13 @@ impl Storable for ICRC1TokenRegistry {
         })
     }
 
+    fn into_bytes(self) -> Vec<u8> {
+        Encode!(&self).unwrap_or_else(|e| {
+            ic_cdk::println!("TokenRegistry into_bytes serialization error: {:?}", e);
+            vec![]
+        })
+    }
+
     const BOUND: Bound = Bound::Bounded {
         max_size: MAX_VALUE_SIZE_TOKEN_REGISTRY,
         is_fixed_size: false,

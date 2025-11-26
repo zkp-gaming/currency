@@ -42,6 +42,13 @@ impl Storable for CurrencyManager {
         })
     }
 
+    fn into_bytes(self) -> Vec<u8> {
+        Encode!(&self).unwrap_or_else(|e| {
+            ic_cdk::println!("CurrencyManager into_bytes serialization error: {:?}", e);
+            vec![]
+        })
+    }
+
     const BOUND: Bound = Bound::Bounded {
         max_size: MAX_VALUE_SIZE_CURRENCY_MANAGER,
         is_fixed_size: false,

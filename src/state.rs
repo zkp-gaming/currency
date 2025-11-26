@@ -87,6 +87,17 @@ impl Storable for TransactionState {
         })
     }
 
+    fn into_bytes(self) -> Vec<u8> {
+        match Encode!(&self) {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                ic_cdk::println!("into_bytes serialization error: {:?}", e);
+                let empty_state = TransactionState::new();
+                Encode!(&empty_state).unwrap_or_else(|_| vec![])
+            }
+        }
+    }
+
     const BOUND: Bound = Bound::Bounded {
         max_size: MAX_VALUE_SIZE_TRANSACTION_STATE,
         is_fixed_size: false,
