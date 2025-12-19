@@ -58,6 +58,7 @@ pub enum CKTokenSymbol {
 #[derive(Debug, Clone, Serialize, CandidType, Deserialize, PartialEq, Eq, Hash, Copy)]
 pub enum Currency {
     ICP,
+    TestICP,
     CKETHToken(CKTokenSymbol),
     BTC,
     GenericICRC1(Token)
@@ -67,6 +68,7 @@ impl Currency {
     pub fn decimals(&self) -> u8 {
         match self {
             Currency::ICP => 8,
+            Currency::TestICP => 8,
             Currency::CKETHToken(token) => match token {
                 CKTokenSymbol::ETH => 18,
                 _ => 6,
@@ -81,6 +83,7 @@ impl std::fmt::Display for Currency {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Currency::ICP => write!(f, "ICP"),
+            Currency::TestICP => write!(f, "TestICP"),
             Currency::CKETHToken(ck_token) => write!(f, "{:?}", ck_token),
             Currency::BTC => write!(f, "BTC"),
             Currency::GenericICRC1(token) => write!(f, "{}", token.symbol_to_string()),
@@ -97,6 +100,7 @@ impl From<u8> for Currency {
             2 => Currency::CKETHToken(CKTokenSymbol::USDT),
             3 => Currency::CKETHToken(CKTokenSymbol::ETH),
             4 => Currency::BTC,
+            5 => Currency::TestICP,
             _ => panic!("Invalid currency value"),
         }
     }
@@ -112,7 +116,8 @@ impl From<Currency> for u8 {
                 CKTokenSymbol::ETH => 3,
             },
             Currency::BTC => 4,
-            Currency::GenericICRC1(_) => 5,
+            Currency::TestICP => 5,
+            Currency::GenericICRC1(_) => 6,
         }
     }
 }

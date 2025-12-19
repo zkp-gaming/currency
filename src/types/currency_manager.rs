@@ -6,15 +6,12 @@ use ic_stable_structures::{storable::Bound, Storable};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    currency_error::CurrencyError,
-    state::TransactionState,
-    types::{
+    Currency, currency_error::CurrencyError, state::TransactionState, types::{
         canister_wallet::CanisterWallet,
         canister_wallets::{
-            ckerc20_token_wallet::CKERC20TokenWallet, icp_canister_wallet::ICPCanisterWallet,
+            ckerc20_token_wallet::CKERC20TokenWallet, icp_canister_wallet::ICPCanisterWallet, test_icp_wallet::TestICPCanisterWallet,
         },
-    },
-    Currency,
+    }
 };
 
 use super::canister_wallets::{btc_token_wallet::CKBTCTokenWallet, icrc1_token_wallet::GenericICRC1TokenWallet};
@@ -35,6 +32,7 @@ impl Storable for CurrencyManager {
             // Return empty CurrencyManager as fallback
             CurrencyManager {
                 icp: None,
+                test_icp: None,
                 ckerc20_tokens: vec![],
                 btc: None,
                 generic_icrc1_tokens: vec![],
@@ -58,6 +56,7 @@ impl Storable for CurrencyManager {
 #[derive(Debug, Clone, Serialize, Deserialize, CandidType)]
 pub struct CurrencyManager {
     pub icp: Option<ICPCanisterWallet>,
+    pub test_icp: Option<TestICPCanisterWallet>,
     pub ckerc20_tokens: Vec<CKERC20TokenWallet>,
     pub btc: Option<CKBTCTokenWallet>,
     pub generic_icrc1_tokens: Vec<GenericICRC1TokenWallet>,
@@ -73,6 +72,7 @@ impl CurrencyManager {
     pub fn new() -> Self {
         Self {
             icp: Some(ICPCanisterWallet),
+            test_icp: Some(TestICPCanisterWallet),
             ckerc20_tokens: Vec::new(),
             btc: Some(CKBTCTokenWallet::new()),
             generic_icrc1_tokens: Vec::new(),
@@ -84,6 +84,11 @@ impl CurrencyManager {
             Currency::ICP => {
                 if self.icp.is_none() {
                     self.icp = Some(ICPCanisterWallet);
+                }
+            }
+            Currency::TestICP => {
+                if self.test_icp.is_none() {
+                    self.test_icp = Some(TestICPCanisterWallet);
                 }
             }
             Currency::CKETHToken(token) => {
@@ -120,6 +125,9 @@ impl CurrencyManager {
             Currency::ICP => {
                 self.icp = None;
             }
+            Currency::TestICP => {
+                self.test_icp = None;
+            }
             Currency::CKETHToken(token) => {
                 self.ckerc20_tokens
                     .retain(|w| w.config.token_symbol != Currency::CKETHToken(*token));
@@ -144,6 +152,10 @@ impl CurrencyManager {
         match currency {
             Currency::ICP => match &self.icp {
                 Some(icp) => icp.deposit(transaction_state, from_principal, amount).await,
+                None => Err(CurrencyError::WalletNotSet),
+            },
+            Currency::TestICP => match &self.test_icp {
+                Some(test_icp) => test_icp.deposit(transaction_state, from_principal, amount).await,
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::CKETHToken(token) => {
@@ -188,6 +200,10 @@ impl CurrencyManager {
                 Some(wallet) => wallet.validate_allowance(from_principal, amount).await,
                 None => Err(CurrencyError::WalletNotSet),
             },
+            Currency::TestICP => match &self.test_icp {
+                Some(test_icp) => test_icp.validate_allowance(from_principal, amount).await,
+                None => Err(CurrencyError::WalletNotSet),
+            },
             Currency::CKETHToken(token) => {
                 let wallet = self
                     .ckerc20_tokens
@@ -220,6 +236,10 @@ impl CurrencyManager {
         match currency {
             Currency::ICP => match &self.icp {
                 Some(wallet) => wallet.withdraw(wallet_principal_id, amount).await,
+                None => Err(CurrencyError::WalletNotSet),
+            },
+            Currency::TestICP => match &self.test_icp {
+                Some(test_icp) => test_icp.withdraw(wallet_principal_id, amount).await,
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::CKETHToken(token) => {
@@ -256,6 +276,10 @@ impl CurrencyManager {
                 Some(wallet) => wallet.withdraw(wallet_principal_id, amount).await,
                 None => Err(CurrencyError::WalletNotSet),
             },
+            Currency::TestICP => match &self.test_icp {
+                Some(test_icp) => test_icp.withdraw(wallet_principal_id, amount).await,
+                None => Err(CurrencyError::WalletNotSet),
+            },
             Currency::CKETHToken(token) => {
                 let wallet = self
                     .ckerc20_tokens
@@ -285,6 +309,10 @@ impl CurrencyManager {
                 Some(wallet) => wallet.get_balance(principal_id).await,
                 None => Err(CurrencyError::WalletNotSet),
             },
+            Currency::TestICP => match &self.test_icp {
+                Some(test_icp) => test_icp.get_balance(principal_id).await,
+                None => Err(CurrencyError::WalletNotSet),
+            },
             Currency::CKETHToken(token) => {
                 let wallet = self
                     .ckerc20_tokens
@@ -311,6 +339,10 @@ impl CurrencyManager {
     pub async fn get_fee(&self, currency: &Currency) -> Result<u128, CurrencyError> {
         match currency {
             Currency::ICP => match &self.icp {
+                Some(_) => Ok(DEFAULT_FEE.e8s() as u128),
+                None => Err(CurrencyError::WalletNotSet),
+            },
+            Currency::TestICP => match &self.test_icp {
                 Some(_) => Ok(DEFAULT_FEE.e8s() as u128),
                 None => Err(CurrencyError::WalletNotSet),
             },
@@ -346,6 +378,10 @@ impl CurrencyManager {
         match currency {
             Currency::ICP => match &self.icp {
                 Some(wallet) => wallet.approve(spender_principal, amount).await,
+                None => Err(CurrencyError::WalletNotSet),
+            },
+            Currency::TestICP => match &self.test_icp {
+                Some(test_icp) => test_icp.approve(spender_principal, amount).await,
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::CKETHToken(token) => {
