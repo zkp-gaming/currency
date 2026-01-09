@@ -1,7 +1,7 @@
 use crate::{
     currency_error::CurrencyError,
     icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError},
-    transfer::transfer_icp, types::canister_wallets::test_icp_wallet::TEST_ICP_LEDGER_CANISTER_ID,
+    transfer::transfer_icp, types::canister_wallets::test_icp_wallet::ICP_LEDGER_CANISTER_ID,
 };
 use candid::{CandidType, Principal};
 use serde::{Deserialize, Serialize};
@@ -31,7 +31,7 @@ impl ICPCanisterWallet {
         };
 
         let (allowance,): (Allowance,) =
-            ic_cdk::call(Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_allowance", (args,))
+            ic_cdk::call(Principal::from_text(ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_allowance", (args,))
                 .await
                 .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
 
@@ -65,7 +65,7 @@ impl ICPCanisterWallet {
         };
 
         let (result,): (Result<u128, TransferFromError>,) =
-            ic_cdk::call(Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_transfer_from", (args,))
+            ic_cdk::call(Principal::from_text(ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_transfer_from", (args,))
                 .await
                 .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
 
@@ -100,7 +100,7 @@ impl ICPCanisterWallet {
         };
 
         let (result,): (Result<u128, ApproveError>,) =
-            ic_cdk::call(Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_approve", (approve_args,))
+            ic_cdk::call(Principal::from_text(ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_approve", (approve_args,))
                 .await
                 .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
 
@@ -191,7 +191,7 @@ impl CanisterWallet for ICPCanisterWallet {
         };
         
         let (balance,): (candid::Nat,) = ic_cdk::call(
-            Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(),
+            Principal::from_text(ICP_LEDGER_CANISTER_ID).unwrap(),
             "icrc1_balance_of", 
             (account,)
         )
