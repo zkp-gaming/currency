@@ -10,7 +10,7 @@ use crate::{
     state::TransactionState, types::canister_wallet::CanisterWallet, utils::get_canister_state,
 };
 
-pub(crate) const ICP_LEDGER_CANISTER_ID: &str = "ryjl3-tyaaa-aaaaa-aaaba-cai";
+pub(crate) const ICP_LEDGER_CANISTER_ID: &str = "xafvr-biaaa-aaaai-aql5q-cai";
 
 #[derive(Debug, Clone, Serialize, Deserialize, CandidType)]
 pub struct TestICPCanisterWallet;
