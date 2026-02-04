@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::{
     cketh_minter_canister_interface::{
         EventPayload, GetEventsArg, GetEventsRet, LedgerError, MinterInfo, TxFinalizedStatus,
@@ -337,6 +339,8 @@ impl CKERC20TokenWallet {
         from: Account,
         to: Account,
         amount: u128,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<u128, CurrencyError> {
         let args = TransferFromArg {
             spender_subaccount: None,
@@ -344,8 +348,8 @@ impl CKERC20TokenWallet {
             to,
             amount,
             fee: Some(ic_ledger_types::DEFAULT_FEE.e8s().into()),
-            memo: None,
-            created_at_time: Some(ic_cdk::api::time()),
+            memo,
+            created_at_time,
         };
 
         let (result,): (Result<u128, TransferFromError>,) =
@@ -369,6 +373,8 @@ impl CKERC20TokenWallet {
         ledger: Principal,
         spender: Principal,
         amount: u128,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         let approve_args = ApproveArgs {
             spender: Account {
@@ -379,9 +385,9 @@ impl CKERC20TokenWallet {
             expected_allowance: None,
             expires_at: None,
             fee: Some(self.config.fee),
-            memo: None,
+            memo,
             from_subaccount: None,
-            created_at_time: Some(ic_cdk::api::time()),
+            created_at_time,
         };
 
         let (result,): (Result<u128, ApproveError>,) =
@@ -403,6 +409,8 @@ impl CanisterWallet for CKERC20TokenWallet {
         transaction_state: &mut TransactionState,
         from_principal: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         let canister_state = get_canister_state();
 
@@ -438,6 +446,8 @@ impl CanisterWallet for CKERC20TokenWallet {
             from_account,
             spender_account,
             amount.into(),
+            memo,
+            created_at_time
         )
         .await?;
 
@@ -489,6 +499,8 @@ impl CanisterWallet for CKERC20TokenWallet {
         &self,
         wallet_principal_id: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         let default_subaccount = {
             let canister_state = get_canister_state();
@@ -500,7 +512,9 @@ impl CanisterWallet for CKERC20TokenWallet {
             amount,
             default_subaccount.to_vec(),
             wallet_principal_id,
-            Some(self.config.fee)
+            Some(self.config.fee),
+            memo,
+            created_at_time
         )
         .await?;
         Ok(())

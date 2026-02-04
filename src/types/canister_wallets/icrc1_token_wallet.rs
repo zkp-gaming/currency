@@ -122,6 +122,8 @@ impl GenericICRC1TokenWallet {
         &self,
         from_principal: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<u128, CurrencyError> {
         if !self.supports_icrc2() {
             return Err(CurrencyError::OperationNotSupported(
@@ -145,8 +147,8 @@ impl GenericICRC1TokenWallet {
             to: canister_account,
             amount: amount.into(),
             fee: Some(self.metadata.fee),
-            memo: None,
-            created_at_time: Some(ic_cdk::api::time()),
+            memo,
+            created_at_time,
         };
 
         let (result,): (Result<u128, TransferFromError>,) =
@@ -169,6 +171,8 @@ impl GenericICRC1TokenWallet {
         &self,
         spender: Principal,
         amount: u128,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         if !self.supports_icrc2() {
             return Err(CurrencyError::OperationNotSupported(
@@ -185,9 +189,9 @@ impl GenericICRC1TokenWallet {
             expected_allowance: None,
             expires_at: None,
             fee: Some(self.metadata.fee),
-            memo: None,
+            memo,
             from_subaccount: None,
-            created_at_time: Some(ic_cdk::api::time()),
+            created_at_time,
         };
 
         let (result,): (Result<u128, ApproveError>,) =
@@ -208,6 +212,8 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         transaction_state: &mut TransactionState,
         from_principal: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         // First check if ICRC-2 is supported
         if !self.supports_icrc2() {
@@ -231,7 +237,7 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         }
 
         // Transfer the tokens using the allowance
-        let block_index = self.transfer_from(from_principal, amount).await?;
+        let block_index = self.transfer_from(from_principal, amount, memo, created_at_time).await?;
 
         // Record the transaction
         let tx_id = format!(
@@ -280,6 +286,8 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         &self,
         wallet_principal_id: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         let default_subaccount = {
             let canister_state = get_canister_state();
@@ -292,6 +300,8 @@ impl CanisterWallet for GenericICRC1TokenWallet {
             default_subaccount,
             wallet_principal_id,
             Some(self.metadata.fee),
+            memo,
+            created_at_time
         )
         .await?;
         Ok(())

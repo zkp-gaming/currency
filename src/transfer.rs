@@ -1,5 +1,5 @@
 use candid::Principal;
-use ic_ledger_types::{AccountIdentifier, Subaccount, MAINNET_LEDGER_CANISTER_ID};
+use ic_ledger_types::{AccountIdentifier, MAINNET_LEDGER_CANISTER_ID, Memo, Subaccount, Timestamp};
 
 use crate::{
     currency_error::CurrencyError,
@@ -10,26 +10,28 @@ pub async fn transfer_icp(
     amount: u64,
     default_subaccount: Subaccount,
     to: Principal,
+    memo: Option<u64>,
+    created_at_time: Option<Timestamp>,
 ) -> Result<(), CurrencyError> {
     let transfer_result = ic_ledger_types::transfer(
         MAINNET_LEDGER_CANISTER_ID,
     &ic_ledger_types::TransferArgs {
-            memo: ic_ledger_types::Memo(0), // Use an appropriate memo
+            memo: Memo(memo.unwrap_or_default()), // Use an appropriate memo
             amount: ic_ledger_types::Tokens::from_e8s(amount - ic_ledger_types::DEFAULT_FEE.e8s()),
             fee: ic_ledger_types::DEFAULT_FEE,
             from_subaccount: Some(default_subaccount),
             to: AccountIdentifier::new(&to, &ic_ledger_types::DEFAULT_SUBACCOUNT),
-            created_at_time: None, // Optionally specify a time
+            created_at_time, // Optionally specify a time
         },
     )
     .await;
 
     match transfer_result {
         Ok(result) => match result {
-            Ok(block_index) => ic_cdk::api::print(format!(
+            Ok(block_index) => ic_cdk::println!(
                 "Transfer successful with block index {}",
                 block_index
-            )),
+            ),
             Err(e) => {
                 return Err(CurrencyError::LedgerError(format!(
                     "Transfer failed: {:?}",
@@ -53,7 +55,9 @@ pub async fn transfer_icrc1(
     amount: u64,
     default_subaccount: Vec<u8>,
     to_account: Principal,
-    fee: Option<u128>
+    fee: Option<u128>,
+    memo: Option<Vec<u8>>,
+    created_at_time: Option<u64>,
 ) -> Result<u128, CurrencyError> {
     ic_cdk::println!(
         "Transferring {} tokens to account {:?}",
@@ -68,9 +72,9 @@ pub async fn transfer_icrc1(
         },
         fee,
         amount: (amount as u128 - fee.unwrap_or(ic_ledger_types::DEFAULT_FEE.e8s().into())),
-        memo: None,
+        memo,
         from_subaccount: None,
-        created_at_time: ic_cdk::api::time().into(),
+        created_at_time,
     };
 
     // Call the icrc1_transfer method
@@ -81,10 +85,10 @@ pub async fn transfer_icrc1(
 
     match transfer_result {
         Ok((Ok(block_index),)) => {
-            ic_cdk::api::print(format!(
+            ic_cdk::println!(
                 "Transfer successful with block index {}",
                 block_index
-            ));
+            );
             Ok(block_index)
         }
         Ok((Err(e),)) => Err(CurrencyError::LedgerError(format!(

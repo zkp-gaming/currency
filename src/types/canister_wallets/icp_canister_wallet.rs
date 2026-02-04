@@ -4,6 +4,7 @@ use crate::{
     transfer::transfer_icp, types::canister_wallets::test_icp_wallet::ICP_LEDGER_CANISTER_ID,
 };
 use candid::{CandidType, Principal};
+use ic_ledger_types::Timestamp;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -43,6 +44,8 @@ impl ICPCanisterWallet {
         &self,
         from_principal: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<u128, CurrencyError> {
         let canister_account = Account {
             owner: ic_cdk::api::id(),
@@ -60,8 +63,8 @@ impl ICPCanisterWallet {
             to: canister_account,
             amount: amount.into(),
             fee: Some(ic_ledger_types::DEFAULT_FEE.e8s().into()),
-            memo: None,
-            created_at_time: Some(ic_cdk::api::time()),
+            memo,
+            created_at_time,
         };
 
         let (result,): (Result<u128, TransferFromError>,) =
@@ -84,6 +87,8 @@ impl ICPCanisterWallet {
         &self,
         spender: Principal,
         amount: u128,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>
     ) -> Result<(), CurrencyError> {
         let approve_args = ApproveArgs {
             spender: Account {
@@ -94,9 +99,9 @@ impl ICPCanisterWallet {
             expected_allowance: None,
             expires_at: None,
             fee: Some(ic_ledger_types::DEFAULT_FEE.e8s() as u128),
-            memo: None,
+            memo,
             from_subaccount: None,
-            created_at_time: Some(ic_cdk::api::time()),
+            created_at_time,
         };
 
         let (result,): (Result<u128, ApproveError>,) =
@@ -117,6 +122,8 @@ impl CanisterWallet for ICPCanisterWallet {
         transaction_state: &mut TransactionState,
         from_principal: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         // First check the allowance to make sure it's sufficient
         let allowance = self.check_allowance(from_principal).await?;
@@ -133,7 +140,7 @@ impl CanisterWallet for ICPCanisterWallet {
         }
 
         // Transfer the tokens using the allowance
-        let block_index = self.transfer_from(from_principal, amount).await?;
+        let block_index = self.transfer_from(from_principal, amount, memo, created_at_time).await?;
 
         // Record the transaction
         let tx_id = format!(
@@ -174,13 +181,26 @@ impl CanisterWallet for ICPCanisterWallet {
         &self,
         wallet_principal_id: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         let default_subaccount = {
             let canister_state = get_canister_state();
             canister_state.default_subaccount
         };
 
-        transfer_icp(amount, default_subaccount, wallet_principal_id).await?;
+        let memo = match memo {
+            Some(m) => Some(m.iter().map(|b| *b as u64).sum()),
+            None => None,
+        };
+
+        // map timestamp option to option timestamp
+        let created_at_time = match created_at_time {
+            Some(t) => Some(Timestamp { timestamp_nanos: t }),
+            None => None,
+        };
+
+        transfer_icp(amount, default_subaccount, wallet_principal_id, memo, created_at_time).await?;
         Ok(())
     }
 

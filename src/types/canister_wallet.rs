@@ -18,6 +18,8 @@ pub(crate) trait CanisterWallet: Send + Sync {
         transaction_state: &mut TransactionState,
         from_principal: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError>;
 
     /** Validate the allowance granted by a user to this canister */
@@ -32,6 +34,8 @@ pub(crate) trait CanisterWallet: Send + Sync {
         &self,
         wallet_principal_id: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError>;
 
     /** Get the balance */

@@ -88,6 +88,8 @@ impl CKBTCTokenWallet {
         &self,
         from_principal: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<u128, CurrencyError> {
         let canister_account = Account {
             owner: ic_cdk::api::id(),
@@ -105,8 +107,8 @@ impl CKBTCTokenWallet {
             to: canister_account,
             amount: amount.into(),
             fee: Some(self.config.fee.into()),
-            memo: None,
-            created_at_time: Some(ic_cdk::api::time()),
+            memo: memo.map(|m| m.into()),
+            created_at_time,
         };
 
         let (result,): (Result<u128, TransferFromError>,) =
@@ -223,6 +225,8 @@ impl CKBTCTokenWallet {
         &self,
         spender: Principal,
         amount: u128,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         let approve_args = ApproveArgs {
             spender: crate::icrc1_types::Account {
@@ -233,9 +237,9 @@ impl CKBTCTokenWallet {
             expected_allowance: None,
             expires_at: None,
             fee: Some(self.config.fee),
-            memo: None,
+            memo,
             from_subaccount: None,
-            created_at_time: Some(ic_cdk::api::time()),
+            created_at_time,
         };
 
         let (result,): (Result<u128, ApproveError>,) =
@@ -256,6 +260,8 @@ impl CanisterWallet for CKBTCTokenWallet {
         transaction_state: &mut TransactionState,
         from_principal: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         // First check the allowance to make sure it's sufficient
         let allowance = self.check_allowance(from_principal).await?;
@@ -272,7 +278,7 @@ impl CanisterWallet for CKBTCTokenWallet {
         }
 
         // Transfer the tokens using the allowance
-        let block_index = self.transfer_from(from_principal, amount).await?;
+        let block_index = self.transfer_from(from_principal, amount, memo, created_at_time).await?;
 
         // Record the transaction
         let tx_id = format!(
@@ -317,6 +323,8 @@ impl CanisterWallet for CKBTCTokenWallet {
         &self,
         wallet_principal_id: Principal,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         let default_subaccount = get_canister_state().default_subaccount.0;
 
@@ -326,6 +334,8 @@ impl CanisterWallet for CKBTCTokenWallet {
             default_subaccount.to_vec(),
             wallet_principal_id,
             Some(self.config.fee),
+            memo,
+            created_at_time,
         )
         .await
         .map_err(|e| CurrencyError::WithdrawalFailed(e.to_string()))?;
