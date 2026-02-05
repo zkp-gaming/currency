@@ -11,7 +11,7 @@ use crate::{
     state::TransactionState, types::canister_wallet::CanisterWallet, utils::get_canister_state,
 };
 
-pub(crate) const ICP_LEDGER_CANISTER_ID: &str = "xafvr-biaaa-aaaai-aql5q-cai";
+pub(crate) const TEST_ICP_LEDGER_CANISTER_ID: &str = "xafvr-biaaa-aaaai-aql5q-cai";
 
 #[derive(Debug, Clone, Serialize, Deserialize, CandidType)]
 pub struct TestICPCanisterWallet;
@@ -34,7 +34,7 @@ impl TestICPCanisterWallet {
         };
 
         let (allowance,): (Allowance,) =
-            ic_cdk::call(Principal::from_text(ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_allowance", (args,))
+            ic_cdk::call(Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_allowance", (args,))
                 .await
                 .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
 
@@ -70,7 +70,7 @@ impl TestICPCanisterWallet {
         };
 
         let (result,): (Result<u128, TransferFromError>,) =
-            ic_cdk::call(Principal::from_text(ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_transfer_from", (args,))
+            ic_cdk::call(Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_transfer_from", (args,))
                 .await
                 .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
 
@@ -110,7 +110,7 @@ impl TestICPCanisterWallet {
         };
 
         let (result,): (Result<u128, ApproveError>,) =
-            ic_cdk::call(Principal::from_text(ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_approve", (approve_args,))
+            ic_cdk::call(Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_approve", (approve_args,))
                 .await
                 .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
 
@@ -221,7 +221,7 @@ impl CanisterWallet for TestICPCanisterWallet {
         };
         
         let (balance,): (candid::Nat,) = ic_cdk::call(
-            Principal::from_text(ICP_LEDGER_CANISTER_ID).unwrap(),
+            Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(),
             "icrc1_balance_of", 
             (account,)
         )
