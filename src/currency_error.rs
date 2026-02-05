@@ -59,10 +59,10 @@ pub enum CurrencyError {
     #[error("Insufficient allowance")]
     InsufficientAllowance,
 
-    #[error("Failed to check allowance")]
+    #[error("Failed to check allowance: {0}")]
     AllowanceCheckFailed(String),
 
-    #[error("Failed to transfer from")]
+    #[error("Failed to transfer from: {0}")]
     TransferFromFailed(String),
 
     #[error("Operation not supported: {0}")]
