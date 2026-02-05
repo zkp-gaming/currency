@@ -32,9 +32,6 @@ pub enum CurrencyError {
     #[error("Invalid transaction type")]
     InvalidTransactionType,
 
-    #[error("Duplicate transaction")]
-    DuplicateTransaction,
-
     #[error("Ledger error: {0}")]
     LedgerError(String),
 
@@ -73,4 +70,7 @@ pub enum CurrencyError {
 
     #[error("Approve failed: {0}")]
     ApproveFailed(String),
+
+    #[error("Duplicate transaction: {id}")]
+    DuplicateTransaction { id: u128 },
 }

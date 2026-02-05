@@ -7,6 +7,7 @@ use crate::{
     currency_error::CurrencyError,
     transfer::transfer_icrc1,
 };
+use num_traits::ToPrimitive;
 use crate::{
     state::TransactionState,
     types::{
@@ -159,10 +160,9 @@ impl CKBTCTokenWallet {
                         error_code, message
                     ))),
                     TransferFromError::Duplicate { duplicate_of } => {
-                        Err(CurrencyError::TransferFromFailed(format!(
-                            "Duplicate transaction: {}",
-                            duplicate_of
-                        )))
+                        Err(CurrencyError::DuplicateTransaction { 
+                            id: duplicate_of.0.to_u128().unwrap_or(0) 
+                        })
                     }
                     TransferFromError::TemporarilyUnavailable => {
                         Err(CurrencyError::TransferFromFailed(
@@ -249,7 +249,14 @@ impl CKBTCTokenWallet {
 
         match result {
             Ok(_) => Ok(()),
-            Err(e) => Err(CurrencyError::ApproveFailed(format!("{:?}", e))),
+            Err(e) => match e {
+                ApproveError::Duplicate { duplicate_of } => {
+                    Err(CurrencyError::DuplicateTransaction { 
+                        id: duplicate_of 
+                    })
+                }
+                _ => Err(CurrencyError::ApproveFailed(format!("{:?}", e))),
+            },
         }
     }
 }

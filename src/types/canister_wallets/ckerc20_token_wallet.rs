@@ -363,6 +363,9 @@ impl CKERC20TokenWallet {
                 TransferFromError::InsufficientAllowance { .. } => {
                     Err(CurrencyError::InsufficientAllowance)
                 }
+                TransferFromError::Duplicate { duplicate_of } => {
+                    Err(CurrencyError::DuplicateTransaction { id: duplicate_of })
+                }
                 _ => Err(CurrencyError::TransferFromFailed(format!("{:?}", e))),
             },
         }
@@ -397,7 +400,12 @@ impl CKERC20TokenWallet {
 
         match result {
             Ok(_) => Ok(()),
-            Err(e) => Err(CurrencyError::ApproveFailed(format!("{:?}", e))),
+            Err(e) => match e {
+                ApproveError::Duplicate { duplicate_of } => {
+                    Err(CurrencyError::DuplicateTransaction { id: duplicate_of })
+                }
+                _ => Err(CurrencyError::ApproveFailed(format!("{:?}", e))),
+            },
         }
     }
 
