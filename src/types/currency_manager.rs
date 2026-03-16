@@ -379,6 +379,7 @@ impl CurrencyManager {
         &self,
         currency: &Currency,
         spender_principal: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u128,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
@@ -401,7 +402,7 @@ impl CurrencyManager {
                 wallet.approve(wallet.config.ledger_id, spender_principal, amount, memo, created_at_time).await
             }
             Currency::BTC => match &self.btc {
-                Some(wallet) => wallet.approve(spender_principal, amount, memo, created_at_time).await,
+                Some(wallet) => wallet.approve(spender_principal, amount, subaccount, memo, created_at_time).await,
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::GenericICRC1(token) => {

@@ -225,13 +225,14 @@ impl CKBTCTokenWallet {
         &self,
         spender: Principal,
         amount: u128,
+        subaccount: Option<Vec<u8>>,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         let approve_args = ApproveArgs {
             spender: crate::icrc1_types::Account {
                 owner: spender,
-                subaccount: None,
+                subaccount,
             },
             amount,
             expected_allowance: None,
