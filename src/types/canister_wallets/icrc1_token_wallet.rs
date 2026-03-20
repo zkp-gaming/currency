@@ -316,9 +316,14 @@ impl CanisterWallet for GenericICRC1TokenWallet {
     }
 
     async fn get_balance(&self, principal_id: Principal) -> Result<u128, CurrencyError> {
+        let default_subaccount = {
+            let canister_state = get_canister_state();
+            canister_state.default_subaccount.0.to_vec()
+        };
+
         let account = Account {
             owner: principal_id,
-            subaccount: None,
+            subaccount: Some(default_subaccount),
         };
         
         let (balance,): (candid::Nat,) = ic_cdk::call(

@@ -351,9 +351,11 @@ impl CanisterWallet for CKBTCTokenWallet {
     }
 
     async fn get_balance(&self, principal_id: Principal) -> Result<u128, CurrencyError> {
+        let default_subaccount = get_canister_state().default_subaccount.0;
+
         let account = crate::ckbtc_ledger_canister_interface::Account {
             owner: principal_id,
-            subaccount: None,
+            subaccount: Some(default_subaccount.to_vec().into()),
         };
         
         let (balance,): (candid::Nat,) = ic_cdk::call(

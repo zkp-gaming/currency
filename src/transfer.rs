@@ -51,7 +51,7 @@ pub async fn transfer_icp(
 
 pub async fn transfer_test_icp(
     amount: u64,
-    default_subaccount: Subaccount,
+    default_subaccount: Option<Subaccount>,
     to: Principal,
     memo: Option<u64>,
     created_at_time: Option<Timestamp>,
@@ -62,7 +62,7 @@ pub async fn transfer_test_icp(
             memo: Memo(memo.unwrap_or_default()), // Use an appropriate memo
             amount: ic_ledger_types::Tokens::from_e8s(amount - ic_ledger_types::DEFAULT_FEE.e8s()),
             fee: ic_ledger_types::DEFAULT_FEE,
-            from_subaccount: Some(default_subaccount),
+            from_subaccount: default_subaccount,
             to: AccountIdentifier::new(&to, &ic_ledger_types::DEFAULT_SUBACCOUNT),
             created_at_time, // Optionally specify a time
         },

@@ -210,14 +210,18 @@ impl CanisterWallet for TestICPCanisterWallet {
             None => None,
         };
 
-        transfer_test_icp(amount, default_subaccount, wallet_principal_id, memo, created_at_time).await?;
+        transfer_test_icp(amount, Some(default_subaccount), wallet_principal_id, memo, created_at_time).await?;
         Ok(())
     }
 
     async fn get_balance(&self, principal_id: Principal) -> Result<u128, CurrencyError> {
+        let default_subaccount = {
+            let canister_state = get_canister_state();
+            canister_state.default_subaccount
+        };
         let account = Account {
             owner: principal_id,
-            subaccount: None,
+            subaccount: Some(default_subaccount.0.to_vec()),
         };
         
         let (balance,): (candid::Nat,) = ic_cdk::call(
