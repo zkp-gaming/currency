@@ -3,7 +3,7 @@ use ic_ledger_types::{AccountIdentifier, MAINNET_LEDGER_CANISTER_ID, Memo, Subac
 
 use crate::{
     currency_error::CurrencyError,
-    icrc1_types::{Account, TransferArg, TransferErrorIcrc1},
+    icrc1_types::{Account, TransferArg, TransferErrorIcrc1}, types::canister_wallets::test_icp_wallet::TEST_ICP_LEDGER_CANISTER_ID,
 };
 
 pub async fn transfer_icp(
@@ -15,6 +15,49 @@ pub async fn transfer_icp(
 ) -> Result<(), CurrencyError> {
     let transfer_result = ic_ledger_types::transfer(
         MAINNET_LEDGER_CANISTER_ID,
+    &ic_ledger_types::TransferArgs {
+            memo: Memo(memo.unwrap_or_default()), // Use an appropriate memo
+            amount: ic_ledger_types::Tokens::from_e8s(amount - ic_ledger_types::DEFAULT_FEE.e8s()),
+            fee: ic_ledger_types::DEFAULT_FEE,
+            from_subaccount: Some(default_subaccount),
+            to: AccountIdentifier::new(&to, &ic_ledger_types::DEFAULT_SUBACCOUNT),
+            created_at_time, // Optionally specify a time
+        },
+    )
+    .await;
+
+    match transfer_result {
+        Ok(result) => match result {
+            Ok(block_index) => ic_cdk::println!(
+                "Transfer successful with block index {}",
+                block_index
+            ),
+            Err(e) => {
+                return Err(CurrencyError::LedgerError(format!(
+                    "Transfer failed: {:?}",
+                    e
+                )))
+            }
+        },
+        Err(e) => {
+            return Err(CurrencyError::LedgerError(format!(
+                "ICDK call error: {:?}",
+                e
+            )))
+        }
+    }
+    Ok(())
+}
+
+pub async fn transfer_test_icp(
+    amount: u64,
+    default_subaccount: Subaccount,
+    to: Principal,
+    memo: Option<u64>,
+    created_at_time: Option<Timestamp>,
+) -> Result<(), CurrencyError> {
+    let transfer_result = ic_ledger_types::transfer(
+        Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(),
     &ic_ledger_types::TransferArgs {
             memo: Memo(memo.unwrap_or_default()), // Use an appropriate memo
             amount: ic_ledger_types::Tokens::from_e8s(amount - ic_ledger_types::DEFAULT_FEE.e8s()),

@@ -1,7 +1,7 @@
 use crate::{
     currency_error::CurrencyError,
     icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError},
-    transfer::transfer_icp,
+    transfer::{transfer_test_icp},
 };
 use candid::{CandidType, Principal};
 use ic_ledger_types::Timestamp;
@@ -210,7 +210,7 @@ impl CanisterWallet for TestICPCanisterWallet {
             None => None,
         };
 
-        transfer_icp(amount, default_subaccount, wallet_principal_id, memo, created_at_time).await?;
+        transfer_test_icp(amount, default_subaccount, wallet_principal_id, memo, created_at_time).await?;
         Ok(())
     }
 
