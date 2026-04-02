@@ -88,17 +88,29 @@ pub fn fee_for_currency(currency: Currency) -> u128 {
 }
 
 pub fn fund_principal(env: &TestEnv, currency: Currency, recipient: Principal, amount: u64) {
+    fund_account(env, currency, recipient, None, amount);
+}
+
+pub fn fund_account(
+    env: &TestEnv,
+    currency: Currency,
+    recipient: Principal,
+    subaccount: Option<Vec<u8>>,
+    amount: u64,
+) {
     match currency {
         Currency::ICP | Currency::TestICP => fund_principal_with_icp_like(
             env,
             ledger_id_for_currency(env, currency),
             recipient,
+            subaccount,
             amount,
         ),
         Currency::BTC | Currency::CKETHToken(_) => fund_principal_with_icrc1(
             env,
             ledger_id_for_currency(env, currency),
             recipient,
+            subaccount,
             amount,
         ),
         Currency::GenericICRC1(_) => panic!("GenericICRC1 is not covered in these tests"),
@@ -109,14 +121,21 @@ fn fund_principal_with_icp_like(
     env: &TestEnv,
     ledger_id: Principal,
     recipient: Principal,
+    subaccount: Option<Vec<u8>>,
     amount_e8s: u64,
 ) {
+    let destination_subaccount = match subaccount {
+        Some(subaccount) => ic_ledger_types::Subaccount(subaccount.try_into().unwrap_or_else(|_| {
+            panic!("invalid ICP-like subaccount length");
+        })),
+        None => DEFAULT_SUBACCOUNT,
+    };
     let transfer_args = TransferArgs {
         memo: Memo(0),
         amount: Tokens::from_e8s(amount_e8s),
         fee: DEFAULT_FEE,
         from_subaccount: None,
-        to: AccountIdentifier::new(&recipient, &DEFAULT_SUBACCOUNT),
+        to: AccountIdentifier::new(&recipient, &destination_subaccount),
         created_at_time: None,
     };
 
@@ -134,6 +153,7 @@ fn fund_principal_with_icrc1(
     env: &TestEnv,
     ledger_id: Principal,
     recipient: Principal,
+    subaccount: Option<Vec<u8>>,
     amount: u64,
 ) {
     let result: Result<u128, TransferErrorIcrc1> = update_call(
@@ -144,7 +164,7 @@ fn fund_principal_with_icrc1(
         (TransferArg {
             to: Account {
                 owner: recipient,
-                subaccount: None,
+                subaccount,
             },
             fee: None,
             memo: None,
@@ -156,7 +176,26 @@ fn fund_principal_with_icrc1(
     result.unwrap_or_else(|err| panic!("minting transfer failed: {err:?}"));
 }
 
-pub fn approve_spender(env: &TestEnv, currency: Currency, owner: Principal, spender: Principal, amount: u128) {
+pub fn approve_spender(
+    env: &TestEnv,
+    currency: Currency,
+    owner: Principal,
+    spender: Principal,
+    amount: u128,
+) {
+    approve_spender_with_args(env, currency, owner, None, spender, amount, None, None);
+}
+
+pub fn approve_spender_with_args(
+    env: &TestEnv,
+    currency: Currency,
+    owner: Principal,
+    from_subaccount: Option<Vec<u8>>,
+    spender: Principal,
+    amount: u128,
+    memo: Option<Vec<u8>>,
+    created_at_time: Option<u64>,
+) {
     let approve_args = ApproveArgs {
         spender: Account {
             owner: spender,
@@ -166,9 +205,9 @@ pub fn approve_spender(env: &TestEnv, currency: Currency, owner: Principal, spen
         expected_allowance: None,
         expires_at: None,
         fee: Some(fee_for_currency(currency)),
-        memo: None,
-        from_subaccount: None,
-        created_at_time: None,
+        memo,
+        from_subaccount,
+        created_at_time,
     };
 
     let result: Result<u128, ApproveError> = update_call(
@@ -182,6 +221,16 @@ pub fn approve_spender(env: &TestEnv, currency: Currency, owner: Principal, spen
 }
 
 pub fn allowance_of(env: &TestEnv, currency: Currency, owner: Principal, spender: Principal) -> Allowance {
+    allowance_of_with_subaccount(env, currency, owner, None, spender)
+}
+
+pub fn allowance_of_with_subaccount(
+    env: &TestEnv,
+    currency: Currency,
+    owner: Principal,
+    owner_subaccount: Option<Vec<u8>>,
+    spender: Principal,
+) -> Allowance {
     query_call(
         env,
         ledger_id_for_currency(env, currency),
@@ -190,7 +239,7 @@ pub fn allowance_of(env: &TestEnv, currency: Currency, owner: Principal, spender
         (AllowanceArgs {
             account: Account {
                 owner,
-                subaccount: None,
+                subaccount: owner_subaccount,
             },
             spender: Account {
                 owner: spender,
@@ -247,12 +296,39 @@ pub fn manager_validate_allowance(
     from_principal: Principal,
     amount: u64,
 ) -> Result<(), CurrencyError> {
+    manager_validate_allowance_with_args(
+        env,
+        currency,
+        from_principal,
+        None,
+        amount,
+        None,
+        None,
+    )
+}
+
+pub fn manager_validate_allowance_with_args(
+    env: &TestEnv,
+    currency: Currency,
+    from_principal: Principal,
+    subaccount: Option<Vec<u8>>,
+    amount: u64,
+    memo: Option<Vec<u8>>,
+    created_at_time: Option<u64>,
+) -> Result<(), CurrencyError> {
     update_call(
         env,
         env.canister_ids.currency_manager_host,
         Principal::anonymous(),
         "validate_allowance",
-        (currency, from_principal, amount),
+        (
+            currency,
+            from_principal,
+            subaccount,
+            amount,
+            memo,
+            created_at_time,
+        ),
     )
 }
 
@@ -262,12 +338,31 @@ pub fn manager_deposit(
     from_principal: Principal,
     amount: u64,
 ) -> Result<(), CurrencyError> {
+    manager_deposit_with_args(env, currency, from_principal, None, amount, None, None)
+}
+
+pub fn manager_deposit_with_args(
+    env: &TestEnv,
+    currency: Currency,
+    from_principal: Principal,
+    subaccount: Option<Vec<u8>>,
+    amount: u64,
+    memo: Option<Vec<u8>>,
+    created_at_time: Option<u64>,
+) -> Result<(), CurrencyError> {
     update_call(
         env,
         env.canister_ids.currency_manager_host,
         Principal::anonymous(),
         "deposit",
-        (currency, from_principal, amount, Option::<Vec<u8>>::None, Option::<u64>::None),
+        (
+            currency,
+            from_principal,
+            subaccount,
+            amount,
+            memo,
+            created_at_time,
+        ),
     )
 }
 
@@ -287,12 +382,31 @@ pub fn manager_withdraw(
     to_principal: Principal,
     amount: u64,
 ) -> Result<(), CurrencyError> {
+    manager_withdraw_with_args(env, currency, to_principal, None, amount, None, None)
+}
+
+pub fn manager_withdraw_with_args(
+    env: &TestEnv,
+    currency: Currency,
+    to_principal: Principal,
+    subaccount: Option<Vec<u8>>,
+    amount: u64,
+    memo: Option<Vec<u8>>,
+    created_at_time: Option<u64>,
+) -> Result<(), CurrencyError> {
     update_call(
         env,
         env.canister_ids.currency_manager_host,
         Principal::anonymous(),
         "withdraw",
-        (currency, to_principal, amount, Option::<Vec<u8>>::None, Option::<u64>::None),
+        (
+            currency,
+            to_principal,
+            subaccount,
+            amount,
+            memo,
+            created_at_time,
+        ),
     )
 }
 
@@ -302,6 +416,26 @@ pub fn manager_approve_allowance(
     spender_principal: Principal,
     subaccount: Option<Vec<u8>>,
     amount: u128,
+) -> Result<(), CurrencyError> {
+    manager_approve_allowance_with_args(
+        env,
+        currency,
+        spender_principal,
+        subaccount,
+        amount,
+        None,
+        None,
+    )
+}
+
+pub fn manager_approve_allowance_with_args(
+    env: &TestEnv,
+    currency: Currency,
+    spender_principal: Principal,
+    subaccount: Option<Vec<u8>>,
+    amount: u128,
+    memo: Option<Vec<u8>>,
+    created_at_time: Option<u64>,
 ) -> Result<(), CurrencyError> {
     update_call(
         env,
@@ -313,12 +447,18 @@ pub fn manager_approve_allowance(
             spender_principal,
             subaccount,
             amount,
-            Option::<Vec<u8>>::None,
-            Option::<u64>::None,
+            memo,
+            created_at_time,
         ),
     )
 }
 
 pub fn default_subaccount() -> Vec<u8> {
     DEFAULT_SUBACCOUNT.0.to_vec()
+}
+
+pub fn non_default_subaccount(seed: u8) -> Vec<u8> {
+    let mut bytes = vec![0u8; 32];
+    bytes[0] = seed;
+    bytes
 }

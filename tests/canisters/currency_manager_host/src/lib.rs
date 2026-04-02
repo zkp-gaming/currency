@@ -37,6 +37,7 @@ async fn manager_for_currency(currency: &Currency) -> Result<CurrencyManager, Cu
 async fn deposit(
     currency: Currency,
     from_principal: Principal,
+    subaccount: Option<Vec<u8>>,
     amount: u64,
     memo: Option<Vec<u8>>,
     created_at_time: Option<u64>,
@@ -48,6 +49,7 @@ async fn deposit(
             &mut transaction_state,
             &currency,
             from_principal,
+            subaccount,
             amount,
             memo,
             created_at_time,
@@ -61,11 +63,21 @@ async fn deposit(
 async fn validate_allowance(
     currency: Currency,
     from_principal: Principal,
+    subaccount: Option<Vec<u8>>,
     amount: u64,
+    memo: Option<Vec<u8>>,
+    created_at_time: Option<u64>,
 ) -> Result<(), CurrencyError> {
     manager_for_currency(&currency)
         .await?
-        .validate_allowance(&currency, from_principal, amount)
+        .validate_allowance(
+            &currency,
+            from_principal,
+            subaccount,
+            amount,
+            memo,
+            created_at_time,
+        )
         .await
 }
 
@@ -73,13 +85,21 @@ async fn validate_allowance(
 async fn withdraw(
     currency: Currency,
     to_principal: Principal,
+    subaccount: Option<Vec<u8>>,
     amount: u64,
     memo: Option<Vec<u8>>,
     created_at_time: Option<u64>,
 ) -> Result<(), CurrencyError> {
     manager_for_currency(&currency)
         .await?
-        .withdraw(&currency, to_principal, amount, memo, created_at_time)
+        .withdraw(
+            &currency,
+            to_principal,
+            subaccount,
+            amount,
+            memo,
+            created_at_time,
+        )
         .await
 }
 

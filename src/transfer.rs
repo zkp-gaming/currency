@@ -8,7 +8,7 @@ use crate::{
 
 pub async fn transfer_icp(
     amount: u64,
-    default_subaccount: Subaccount,
+    from_subaccount: Subaccount,
     to: Principal,
     memo: Option<u64>,
     created_at_time: Option<Timestamp>,
@@ -19,7 +19,7 @@ pub async fn transfer_icp(
             memo: Memo(memo.unwrap_or_default()), // Use an appropriate memo
             amount: ic_ledger_types::Tokens::from_e8s(amount - ic_ledger_types::DEFAULT_FEE.e8s()),
             fee: ic_ledger_types::DEFAULT_FEE,
-            from_subaccount: Some(default_subaccount),
+            from_subaccount: Some(from_subaccount),
             to: AccountIdentifier::new(&to, &ic_ledger_types::DEFAULT_SUBACCOUNT),
             created_at_time, // Optionally specify a time
         },
@@ -51,7 +51,7 @@ pub async fn transfer_icp(
 
 pub async fn transfer_test_icp(
     amount: u64,
-    default_subaccount: Option<Subaccount>,
+    from_subaccount: Option<Subaccount>,
     to: Principal,
     memo: Option<u64>,
     created_at_time: Option<Timestamp>,
@@ -62,7 +62,7 @@ pub async fn transfer_test_icp(
             memo: Memo(memo.unwrap_or_default()), // Use an appropriate memo
             amount: ic_ledger_types::Tokens::from_e8s(amount - ic_ledger_types::DEFAULT_FEE.e8s()),
             fee: ic_ledger_types::DEFAULT_FEE,
-            from_subaccount: default_subaccount,
+            from_subaccount,
             to: AccountIdentifier::new(&to, &ic_ledger_types::DEFAULT_SUBACCOUNT),
             created_at_time, // Optionally specify a time
         },
@@ -96,7 +96,8 @@ pub async fn transfer_test_icp(
 pub async fn transfer_icrc1(
     ledger_canister_id: Principal,
     amount: u64,
-    default_subaccount: Vec<u8>,
+    from_subaccount: Option<Vec<u8>>,
+    to_subaccount: Option<Vec<u8>>,
     to_account: Principal,
     fee: Option<u128>,
     memo: Option<Vec<u8>>,
@@ -111,12 +112,12 @@ pub async fn transfer_icrc1(
     let transfer_args = TransferArg {
         to: Account {
             owner: to_account,
-            subaccount: Some(default_subaccount),
+            subaccount: to_subaccount,
         },
         fee,
         amount: (amount as u128 - fee.unwrap_or(ic_ledger_types::DEFAULT_FEE.e8s().into())),
         memo,
-        from_subaccount: None,
+        from_subaccount,
         created_at_time,
     };
 

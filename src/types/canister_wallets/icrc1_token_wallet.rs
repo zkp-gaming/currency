@@ -106,6 +106,7 @@ impl GenericICRC1TokenWallet {
     pub async fn check_allowance(
         &self,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
     ) -> Result<Allowance, CurrencyError> {
         if !self.supports_icrc2() {
             return Err(CurrencyError::OperationNotSupported(
@@ -116,7 +117,7 @@ impl GenericICRC1TokenWallet {
         let args = AllowanceArgs {
             account: Account {
                 owner: from_principal,
-                subaccount: None,
+                subaccount,
             },
             spender: Account {
                 owner: ic_cdk::api::canister_self(),
@@ -139,6 +140,7 @@ impl GenericICRC1TokenWallet {
     pub async fn transfer_from(
         &self,
         from_principal: Principal,
+        from_subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
@@ -156,7 +158,7 @@ impl GenericICRC1TokenWallet {
 
         let from_account = Account {
             owner: from_principal,
-            subaccount: None,
+            subaccount: from_subaccount,
         };
 
         let args = TransferFromArg {
@@ -195,6 +197,7 @@ impl GenericICRC1TokenWallet {
         &self,
         spender: Principal,
         amount: u128,
+        from_subaccount: Option<Vec<u8>>,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
@@ -214,7 +217,7 @@ impl GenericICRC1TokenWallet {
             expires_at: None,
             fee: Some(self.metadata.fee),
             memo,
-            from_subaccount: None,
+            from_subaccount,
             created_at_time,
         };
 
@@ -243,6 +246,7 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         &self,
         transaction_state: &mut TransactionState,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
@@ -255,7 +259,9 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         }
         
         // Check the allowance to make sure it's sufficient
-        let allowance = self.check_allowance(from_principal).await?;
+        let allowance = self
+            .check_allowance(from_principal, subaccount.clone())
+            .await?;
 
         if allowance.allowance < amount as u128 {
             return Err(CurrencyError::InsufficientAllowance);
@@ -269,7 +275,9 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         }
 
         // Transfer the tokens using the allowance
-        let block_index = self.transfer_from(from_principal, amount, memo, created_at_time).await?;
+        let block_index = self
+            .transfer_from(from_principal, subaccount, amount, memo, created_at_time)
+            .await?;
 
         // Record the transaction
         let tx_id = format!(
@@ -288,7 +296,10 @@ impl CanisterWallet for GenericICRC1TokenWallet {
     async fn validate_allowance(
         &self, 
         from_principal: Principal, 
-        amount: u64
+        subaccount: Option<Vec<u8>>,
+        amount: u64,
+        _memo: Option<Vec<u8>>,
+        _created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         // Check if ICRC-2 is supported
         if !self.supports_icrc2() {
@@ -298,7 +309,7 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         }
         
         // Check the allowance to make sure it's sufficient
-        let allowance = self.check_allowance(from_principal).await?;
+        let allowance = self.check_allowance(from_principal, subaccount).await?;
         
         if allowance.allowance < amount as u128 {
             return Err(CurrencyError::InsufficientAllowance);
@@ -317,19 +328,19 @@ impl CanisterWallet for GenericICRC1TokenWallet {
     async fn withdraw(
         &self,
         wallet_principal_id: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
-        let default_subaccount = {
-            let canister_state = get_canister_state();
-            canister_state.default_subaccount.0.to_vec()
-        };
+        let from_subaccount =
+            subaccount.or_else(|| Some(get_canister_state().default_subaccount.0.to_vec()));
 
         transfer_icrc1(
             self.ledger_id,
             amount,
-            default_subaccount,
+            from_subaccount,
+            Some(get_canister_state().default_subaccount.0.to_vec()),
             wallet_principal_id,
             Some(self.metadata.fee),
             memo,

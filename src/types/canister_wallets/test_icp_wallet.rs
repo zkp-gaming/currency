@@ -19,11 +19,12 @@ impl TestICPCanisterWallet {
     pub async fn check_allowance(
         &self,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
     ) -> Result<Allowance, CurrencyError> {
         let args = AllowanceArgs {
             account: Account {
                 owner: from_principal,
-                subaccount: None,
+                subaccount,
             },
             spender: Account {
                 owner: ic_cdk::api::canister_self(),
@@ -49,6 +50,7 @@ impl TestICPCanisterWallet {
     pub async fn transfer_from(
         &self,
         from_principal: Principal,
+        from_subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
@@ -60,7 +62,7 @@ impl TestICPCanisterWallet {
 
         let from_account = Account {
             owner: from_principal,
-            subaccount: None,
+            subaccount: from_subaccount,
         };
 
         let args = TransferFromArg {
@@ -102,6 +104,7 @@ impl TestICPCanisterWallet {
         &self,
         spender: Principal,
         amount: u128,
+        from_subaccount: Option<Vec<u8>>,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
@@ -115,7 +118,7 @@ impl TestICPCanisterWallet {
             expires_at: None,
             fee: Some(ic_ledger_types::DEFAULT_FEE.e8s() as u128),
             memo,
-            from_subaccount: None,
+            from_subaccount,
             created_at_time,
         };
 
@@ -147,12 +150,15 @@ impl CanisterWallet for TestICPCanisterWallet {
         &self,
         transaction_state: &mut TransactionState,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         // First check the allowance to make sure it's sufficient
-        let allowance = self.check_allowance(from_principal).await?;
+        let allowance = self
+            .check_allowance(from_principal, subaccount.clone())
+            .await?;
 
         if allowance.allowance < amount as u128 {
             return Err(CurrencyError::InsufficientAllowance);
@@ -166,7 +172,9 @@ impl CanisterWallet for TestICPCanisterWallet {
         }
 
         // Transfer the tokens using the allowance
-        let block_index = self.transfer_from(from_principal, amount, memo, created_at_time).await?;
+        let block_index = self
+            .transfer_from(from_principal, subaccount, amount, memo, created_at_time)
+            .await?;
 
         // Record the transaction
         let tx_id = format!(
@@ -184,10 +192,13 @@ impl CanisterWallet for TestICPCanisterWallet {
     async fn validate_allowance(
         &self, 
         from_principal: Principal, 
-        amount: u64
+        subaccount: Option<Vec<u8>>,
+        amount: u64,
+        _memo: Option<Vec<u8>>,
+        _created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         // Check the allowance to make sure it's sufficient
-        let allowance = self.check_allowance(from_principal).await?;
+        let allowance = self.check_allowance(from_principal, subaccount).await?;
         
         if allowance.allowance < amount as u128 {
             return Err(CurrencyError::InsufficientAllowance);
@@ -206,13 +217,18 @@ impl CanisterWallet for TestICPCanisterWallet {
     async fn withdraw(
         &self,
         wallet_principal_id: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
-        let default_subaccount = {
-            let canister_state = get_canister_state();
-            canister_state.default_subaccount
+        let from_subaccount = match subaccount {
+            Some(subaccount) => Some(ic_ledger_types::Subaccount(
+                subaccount.try_into().map_err(|_| {
+                    CurrencyError::LedgerError("Invalid TestICP subaccount length".to_string())
+                })?,
+            )),
+            None => Some(get_canister_state().default_subaccount),
         };
 
         let memo = memo.map(|m| m.iter().map(|b| *b as u64).sum());
@@ -220,7 +236,8 @@ impl CanisterWallet for TestICPCanisterWallet {
         // map timestamp option to option timestamp
         let created_at_time = created_at_time.map(|t| Timestamp { timestamp_nanos: t });
 
-        transfer_test_icp(amount, Some(default_subaccount), wallet_principal_id, memo, created_at_time).await?;
+        transfer_test_icp(amount, from_subaccount, wallet_principal_id, memo, created_at_time)
+            .await?;
         Ok(())
     }
 

@@ -396,6 +396,7 @@ impl CKERC20TokenWallet {
         ledger: Principal,
         spender: Principal,
         amount: u128,
+        from_subaccount: Option<Vec<u8>>,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
@@ -409,7 +410,7 @@ impl CKERC20TokenWallet {
             expires_at: None,
             fee: Some(self.config.fee),
             memo,
-            from_subaccount: None,
+            from_subaccount,
             created_at_time,
         };
 
@@ -439,6 +440,7 @@ impl CanisterWallet for CKERC20TokenWallet {
         &self,
         transaction_state: &mut TransactionState,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
@@ -448,7 +450,7 @@ impl CanisterWallet for CKERC20TokenWallet {
         // Check allowance
         let from_account = Account {
             owner: from_principal,
-            subaccount: None,
+            subaccount: subaccount.clone(),
         };
         let spender_account = Account {
             owner: canister_state.owner,
@@ -464,7 +466,7 @@ impl CanisterWallet for CKERC20TokenWallet {
 
         let from_account = Account {
             owner: from_principal,
-            subaccount: None,
+            subaccount,
         };
         let spender_account = Account {
             owner: canister_state.owner,
@@ -497,13 +499,16 @@ impl CanisterWallet for CKERC20TokenWallet {
     async fn validate_allowance(
         &self, 
         from_principal: Principal, 
-        amount: u64
+        subaccount: Option<Vec<u8>>,
+        amount: u64,
+        _memo: Option<Vec<u8>>,
+        _created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         let canister_state = get_canister_state();
 
         let from_account = Account {
             owner: from_principal,
-            subaccount: None,
+            subaccount,
         };
         let spender_account = Account {
             owner: canister_state.owner,
@@ -529,19 +534,19 @@ impl CanisterWallet for CKERC20TokenWallet {
     async fn withdraw(
         &self,
         wallet_principal_id: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
-        let default_subaccount = {
-            let canister_state = get_canister_state();
-            canister_state.default_subaccount.0
-        };
+        let from_subaccount =
+            subaccount.or_else(|| Some(get_canister_state().default_subaccount.0.to_vec()));
 
         transfer_icrc1(
             self.config.ledger_id,
             amount,
-            default_subaccount.to_vec(),
+            from_subaccount,
+            Some(get_canister_state().default_subaccount.0.to_vec()),
             wallet_principal_id,
             Some(self.config.fee),
             memo,

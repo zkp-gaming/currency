@@ -1,6 +1,7 @@
 #![cfg(test)]
 
 mod currency_manager_btc_tests;
+mod currency_manager_argument_tests;
 mod currency_manager_cketh_tests;
 mod currency_manager_ckusdc_tests;
 mod currency_manager_ckusdt_tests;

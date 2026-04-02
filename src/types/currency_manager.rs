@@ -147,17 +147,36 @@ impl CurrencyManager {
         transaction_state: &mut TransactionState,
         currency: &Currency,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         match currency {
             Currency::ICP => match &self.icp {
-                Some(icp) => icp.deposit(transaction_state, from_principal, amount, memo, created_at_time).await,
+                Some(icp) => icp
+                    .deposit(
+                        transaction_state,
+                        from_principal,
+                        subaccount.clone(),
+                        amount,
+                        memo,
+                        created_at_time,
+                    )
+                    .await,
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::TestICP => match &self.test_icp {
-                Some(test_icp) => test_icp.deposit(transaction_state, from_principal, amount, memo, created_at_time).await,
+                Some(test_icp) => test_icp
+                    .deposit(
+                        transaction_state,
+                        from_principal,
+                        subaccount.clone(),
+                        amount,
+                        memo,
+                        created_at_time,
+                    )
+                    .await,
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::CKETHToken(token) => {
@@ -167,13 +186,27 @@ impl CurrencyManager {
                     .find(|w| w.config.token_symbol == Currency::CKETHToken(*token))
                     .ok_or(CurrencyError::WalletNotSet)?;
                 wallet
-                    .deposit(transaction_state, from_principal, amount, memo, created_at_time)
+                    .deposit(
+                        transaction_state,
+                        from_principal,
+                        subaccount.clone(),
+                        amount,
+                        memo,
+                        created_at_time,
+                    )
                     .await
             }
             Currency::BTC => match &self.btc {
                 Some(wallet) => {
                     wallet
-                        .deposit(transaction_state, from_principal, amount, memo, created_at_time)
+                        .deposit(
+                            transaction_state,
+                            from_principal,
+                            subaccount.clone(),
+                            amount,
+                            memo,
+                            created_at_time,
+                        )
                         .await
                 }
                 None => Err(CurrencyError::WalletNotSet),
@@ -185,7 +218,14 @@ impl CurrencyManager {
                     .find(|w| w.metadata.symbol == token.symbol_to_string())
                     .ok_or(CurrencyError::WalletNotSet)?;
                 wallet
-                    .deposit(transaction_state, from_principal, amount, memo, created_at_time)
+                    .deposit(
+                        transaction_state,
+                        from_principal,
+                        subaccount,
+                        amount,
+                        memo,
+                        created_at_time,
+                    )
                     .await
             }
         }
@@ -195,15 +235,26 @@ impl CurrencyManager {
         &self,
         currency: &Currency,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
+        memo: Option<Vec<u8>>,
+        created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         match currency {
             Currency::ICP => match &self.icp {
-                Some(wallet) => wallet.validate_allowance(from_principal, amount).await,
+                Some(wallet) => {
+                    wallet
+                        .validate_allowance(from_principal, subaccount, amount, memo, created_at_time)
+                        .await
+                }
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::TestICP => match &self.test_icp {
-                Some(test_icp) => test_icp.validate_allowance(from_principal, amount).await,
+                Some(test_icp) => {
+                    test_icp
+                        .validate_allowance(from_principal, subaccount, amount, memo, created_at_time)
+                        .await
+                }
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::CKETHToken(token) => {
@@ -212,10 +263,22 @@ impl CurrencyManager {
                     .iter()
                     .find(|w| w.config.token_symbol == Currency::CKETHToken(*token))
                     .ok_or(CurrencyError::WalletNotSet)?;
-                wallet.validate_allowance(from_principal, amount).await
+                wallet
+                    .validate_allowance(
+                        from_principal,
+                        subaccount,
+                        amount,
+                        memo,
+                        created_at_time,
+                    )
+                    .await
             }
             Currency::BTC => match &self.btc {
-                Some(wallet) => wallet.validate_allowance(from_principal, amount).await,
+                Some(wallet) => {
+                    wallet
+                        .validate_allowance(from_principal, subaccount, amount, memo, created_at_time)
+                        .await
+                }
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::GenericICRC1(token) => {
@@ -224,7 +287,15 @@ impl CurrencyManager {
                     .iter()
                     .find(|w| w.metadata.symbol == token.symbol_to_string())
                     .ok_or(CurrencyError::WalletNotSet)?;
-                wallet.validate_allowance(from_principal, amount).await
+                wallet
+                    .validate_allowance(
+                        from_principal,
+                        subaccount,
+                        amount,
+                        memo,
+                        created_at_time,
+                    )
+                    .await
             }
         }
     }
@@ -233,17 +304,26 @@ impl CurrencyManager {
         &self,
         currency: &Currency,
         wallet_principal_id: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         match currency {
             Currency::ICP => match &self.icp {
-                Some(wallet) => wallet.withdraw(wallet_principal_id, amount, memo, created_at_time).await,
+                Some(wallet) => {
+                    wallet
+                        .withdraw(wallet_principal_id, subaccount, amount, memo, created_at_time)
+                        .await
+                }
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::TestICP => match &self.test_icp {
-                Some(test_icp) => test_icp.withdraw(wallet_principal_id, amount, memo, created_at_time).await,
+                Some(test_icp) => {
+                    test_icp
+                        .withdraw(wallet_principal_id, subaccount, amount, memo, created_at_time)
+                        .await
+                }
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::CKETHToken(token) => {
@@ -252,10 +332,16 @@ impl CurrencyManager {
                     .iter()
                     .find(|w| w.config.token_symbol == Currency::CKETHToken(*token))
                     .ok_or(CurrencyError::WalletNotSet)?;
-                wallet.withdraw(wallet_principal_id, amount, memo, created_at_time).await
+                wallet
+                    .withdraw(wallet_principal_id, subaccount, amount, memo, created_at_time)
+                    .await
             }
             Currency::BTC => match &self.btc {
-                Some(wallet) => wallet.withdraw(wallet_principal_id, amount, memo, created_at_time).await,
+                Some(wallet) => {
+                    wallet
+                        .withdraw(wallet_principal_id, subaccount, amount, memo, created_at_time)
+                        .await
+                }
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::GenericICRC1(token) => {
@@ -264,7 +350,9 @@ impl CurrencyManager {
                     .iter()
                     .find(|w| w.metadata.symbol == token.symbol_to_string())
                     .ok_or(CurrencyError::WalletNotSet)?;
-                wallet.withdraw(wallet_principal_id, amount, memo, created_at_time).await
+                wallet
+                    .withdraw(wallet_principal_id, subaccount, amount, memo, created_at_time)
+                    .await
             }
         }
     }
@@ -346,11 +434,19 @@ impl CurrencyManager {
     ) -> Result<(), CurrencyError> {
         match currency {
             Currency::ICP => match &self.icp {
-                Some(wallet) => wallet.approve(spender_principal, amount, memo, created_at_time).await,
+                Some(wallet) => {
+                    wallet
+                        .approve(spender_principal, amount, subaccount, memo, created_at_time)
+                        .await
+                }
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::TestICP => match &self.test_icp {
-                Some(test_icp) => test_icp.approve(spender_principal, amount, memo, created_at_time).await,
+                Some(test_icp) => {
+                    test_icp
+                        .approve(spender_principal, amount, subaccount, memo, created_at_time)
+                        .await
+                }
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::CKETHToken(token) => {
@@ -359,10 +455,23 @@ impl CurrencyManager {
                     .iter()
                     .find(|w| w.config.token_symbol == Currency::CKETHToken(*token))
                     .ok_or(CurrencyError::WalletNotSet)?;
-                wallet.approve(wallet.config.ledger_id, spender_principal, amount, memo, created_at_time).await
+                wallet
+                    .approve(
+                        wallet.config.ledger_id,
+                        spender_principal,
+                        amount,
+                        subaccount,
+                        memo,
+                        created_at_time,
+                    )
+                    .await
             }
             Currency::BTC => match &self.btc {
-                Some(wallet) => wallet.approve(spender_principal, amount, subaccount, memo, created_at_time).await,
+                Some(wallet) => {
+                    wallet
+                        .approve(spender_principal, amount, subaccount, memo, created_at_time)
+                        .await
+                }
                 None => Err(CurrencyError::WalletNotSet),
             },
             Currency::GenericICRC1(token) => {
@@ -371,7 +480,9 @@ impl CurrencyManager {
                     .iter()
                     .find(|w| w.metadata.symbol == token.symbol_to_string())
                     .ok_or(CurrencyError::WalletNotSet)?;
-                wallet.approve(spender_principal, amount, memo, created_at_time).await
+                wallet
+                    .approve(spender_principal, amount, subaccount, memo, created_at_time)
+                    .await
             }
         }
     }

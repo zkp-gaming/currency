@@ -71,11 +71,12 @@ impl CKBTCTokenWallet {
     pub async fn check_allowance(
         &self,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
     ) -> Result<Allowance, CurrencyError> {
         let args = AllowanceArgs {
             account: Account {
                 owner: from_principal,
-                subaccount: None,
+                subaccount: subaccount.map(Into::into),
             },
             spender: Account {
                 owner: ic_cdk::api::canister_self(),
@@ -98,6 +99,7 @@ impl CKBTCTokenWallet {
     pub async fn transfer_from(
         &self,
         from_principal: Principal,
+        from_subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
@@ -109,7 +111,7 @@ impl CKBTCTokenWallet {
 
         let from_account = Account {
             owner: from_principal,
-            subaccount: None,
+            subaccount: from_subaccount.map(Into::into),
         };
 
         let args = TransferFromArgs {
@@ -248,14 +250,14 @@ impl CKBTCTokenWallet {
         let approve_args = ApproveArgs {
             spender: crate::icrc1_types::Account {
                 owner: spender,
-                subaccount,
+                subaccount: None,
             },
             amount,
             expected_allowance: None,
             expires_at: None,
             fee: Some(self.config.fee),
             memo,
-            from_subaccount: None,
+            from_subaccount: subaccount,
             created_at_time,
         };
 
@@ -286,12 +288,15 @@ impl CanisterWallet for CKBTCTokenWallet {
         &self,
         transaction_state: &mut TransactionState,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         // First check the allowance to make sure it's sufficient
-        let allowance = self.check_allowance(from_principal).await?;
+        let allowance = self
+            .check_allowance(from_principal, subaccount.clone())
+            .await?;
 
         if allowance.allowance < amount as u128 {
             return Err(CurrencyError::InsufficientAllowance);
@@ -305,7 +310,9 @@ impl CanisterWallet for CKBTCTokenWallet {
         }
 
         // Transfer the tokens using the allowance
-        let block_index = self.transfer_from(from_principal, amount, memo, created_at_time).await?;
+        let block_index = self
+            .transfer_from(from_principal, subaccount, amount, memo, created_at_time)
+            .await?;
 
         // Record the transaction
         let tx_id = format!(
@@ -327,10 +334,13 @@ impl CanisterWallet for CKBTCTokenWallet {
     async fn validate_allowance(
         &self, 
         from_principal: Principal, 
-        amount: u64
+        subaccount: Option<Vec<u8>>,
+        amount: u64,
+        _memo: Option<Vec<u8>>,
+        _created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         // Check the allowance to make sure it's sufficient
-        let allowance = self.check_allowance(from_principal).await?;
+        let allowance = self.check_allowance(from_principal, subaccount).await?;
         
         if allowance.allowance < amount as u128 {
             return Err(CurrencyError::InsufficientAllowance);
@@ -349,16 +359,19 @@ impl CanisterWallet for CKBTCTokenWallet {
     async fn withdraw(
         &self,
         wallet_principal_id: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
-        let default_subaccount = get_canister_state().default_subaccount.0;
+        let from_subaccount =
+            subaccount.or_else(|| Some(get_canister_state().default_subaccount.0.to_vec()));
 
         transfer_icrc1(
             self.config.ledger_id,
             amount,
-            default_subaccount.to_vec(),
+            from_subaccount,
+            Some(get_canister_state().default_subaccount.0.to_vec()),
             wallet_principal_id,
             Some(self.config.fee),
             memo,
