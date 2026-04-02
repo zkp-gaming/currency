@@ -1,7 +1,7 @@
 use crate::{
     currency_error::CurrencyError,
     icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError},
-    transfer::{transfer_test_icp},
+    transfer::transfer_test_icp, types::constants::TEST_ICP_LEDGER_CANISTER_ID,
 };
 use candid::{CandidType, Principal};
 use ic_ledger_types::Timestamp;
@@ -10,8 +10,6 @@ use serde::{Deserialize, Serialize};
 use crate::{
     state::TransactionState, types::canister_wallet::CanisterWallet, utils::get_canister_state,
 };
-
-pub(crate) const TEST_ICP_LEDGER_CANISTER_ID: &str = "xafvr-biaaa-aaaai-aql5q-cai";
 
 #[derive(Debug, Clone, Serialize, Deserialize, CandidType)]
 pub struct TestICPCanisterWallet;

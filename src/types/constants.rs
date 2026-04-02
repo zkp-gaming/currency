@@ -13,3 +13,5 @@ pub const ETH_DECIMALS: u8 = 18;
 pub const BTC_MINTER_CANISTER_ID: &str = "mqygn-kiaaa-aaaar-qaadq-cai";
 pub const BTC_LEDGER_CANISTER_ID: &str = "mxzaz-hqaaa-aaaar-qaada-cai";
 pub const BTC_DECIMALS: u8 = 8;
+
+pub const TEST_ICP_LEDGER_CANISTER_ID: &str = "xafvr-biaaa-aaaai-aql5q-cai";

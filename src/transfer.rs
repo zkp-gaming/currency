@@ -3,7 +3,7 @@ use ic_ledger_types::{AccountIdentifier, MAINNET_LEDGER_CANISTER_ID, Memo, Subac
 
 use crate::{
     currency_error::CurrencyError,
-    icrc1_types::{Account, TransferArg, TransferErrorIcrc1}, types::canister_wallets::test_icp_wallet::TEST_ICP_LEDGER_CANISTER_ID,
+    icrc1_types::{Account, TransferArg, TransferErrorIcrc1}, types::constants::TEST_ICP_LEDGER_CANISTER_ID,
 };
 
 pub async fn transfer_icp(
