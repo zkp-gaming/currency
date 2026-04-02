@@ -217,16 +217,10 @@ impl CanisterWallet for ICPCanisterWallet {
             canister_state.default_subaccount
         };
 
-        let memo = match memo {
-            Some(m) => Some(m.iter().map(|b| *b as u64).sum()),
-            None => None,
-        };
+        let memo = memo.map(|m| m.iter().map(|b| *b as u64).sum());
 
         // map timestamp option to option timestamp
-        let created_at_time = match created_at_time {
-            Some(t) => Some(Timestamp { timestamp_nanos: t }),
-            None => None,
-        };
+        let created_at_time = created_at_time.map(|t| Timestamp { timestamp_nanos: t });
 
         transfer_icp(amount, default_subaccount, wallet_principal_id, memo, created_at_time).await?;
         Ok(())
