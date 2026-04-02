@@ -269,46 +269,6 @@ impl CurrencyManager {
         }
     }
 
-    pub async fn withdraw_rake(
-        &self,
-        currency: &Currency,
-        wallet_principal_id: Principal,
-        amount: u64,
-        memo: Option<Vec<u8>>,
-        created_at_time: Option<u64>,
-    ) -> Result<(), CurrencyError> {
-        match currency {
-            Currency::ICP => match &self.icp {
-                Some(wallet) => wallet.withdraw(wallet_principal_id, amount, memo, created_at_time).await,
-                None => Err(CurrencyError::WalletNotSet),
-            },
-            Currency::TestICP => match &self.test_icp {
-                Some(test_icp) => test_icp.withdraw(wallet_principal_id, amount, memo, created_at_time).await,
-                None => Err(CurrencyError::WalletNotSet),
-            },
-            Currency::CKETHToken(token) => {
-                let wallet = self
-                    .ckerc20_tokens
-                    .iter()
-                    .find(|w| w.config.token_symbol == Currency::CKETHToken(*token))
-                    .ok_or(CurrencyError::WalletNotSet)?;
-                wallet.withdraw(wallet_principal_id, amount, memo, created_at_time).await
-            }
-            Currency::BTC => match &self.btc {
-                Some(wallet) => wallet.withdraw(wallet_principal_id, amount, memo, created_at_time).await,
-                None => Err(CurrencyError::WalletNotSet),
-            },
-            Currency::GenericICRC1(token) => {
-                let wallet = self
-                    .generic_icrc1_tokens
-                    .iter()
-                    .find(|w| w.metadata.symbol == token.symbol_to_string())
-                    .ok_or(CurrencyError::WalletNotSet)?;
-                wallet.withdraw(wallet_principal_id, amount, memo, created_at_time).await
-            }
-        }
-    }
-
     pub async fn get_balance(&self, currency: &Currency, principal_id: Principal) -> Result<u128, CurrencyError> {
         match currency {
             Currency::ICP => match &self.icp {

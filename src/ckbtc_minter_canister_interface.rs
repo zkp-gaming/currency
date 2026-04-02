@@ -2,7 +2,6 @@
 // You may want to manually adjust some of the types.
 #![allow(dead_code, unused_imports)]
 use candid::{self, CandidType, Decode, Deserialize, Encode, Principal};
-use ic_cdk::api::call::CallResult as Result;
 
 #[derive(CandidType, Deserialize)]
 pub enum Mode {
@@ -462,65 +461,4 @@ pub enum UpdateBalanceError {
 pub enum UpdateBalanceRet {
     Ok(Vec<UtxoStatus>),
     Err(UpdateBalanceError),
-}
-
-pub struct Service(pub Principal);
-impl Service {
-    pub async fn estimate_withdrawal_fee(
-        &self,
-        arg0: EstimateWithdrawalFeeArg,
-    ) -> Result<(EstimateWithdrawalFeeRet,)> {
-        ic_cdk::call(self.0, "estimate_withdrawal_fee", (arg0,)).await
-    }
-    pub async fn get_btc_address(&self, arg0: GetBtcAddressArg) -> Result<(String,)> {
-        ic_cdk::call(self.0, "get_btc_address", (arg0,)).await
-    }
-    pub async fn get_canister_status(&self) -> Result<(CanisterStatusResponse,)> {
-        ic_cdk::call(self.0, "get_canister_status", ()).await
-    }
-    pub async fn get_deposit_fee(&self) -> Result<(u64,)> {
-        ic_cdk::call(self.0, "get_deposit_fee", ()).await
-    }
-    pub async fn get_events(&self, arg0: GetEventsArg) -> Result<(Vec<Event>,)> {
-        ic_cdk::call(self.0, "get_events", (arg0,)).await
-    }
-    pub async fn get_known_utxos(&self, arg0: GetKnownUtxosArg) -> Result<(Vec<Utxo>,)> {
-        ic_cdk::call(self.0, "get_known_utxos", (arg0,)).await
-    }
-    pub async fn get_minter_info(&self) -> Result<(MinterInfo,)> {
-        ic_cdk::call(self.0, "get_minter_info", ()).await
-    }
-    pub async fn get_withdrawal_account(&self) -> Result<(Account,)> {
-        ic_cdk::call(self.0, "get_withdrawal_account", ()).await
-    }
-    pub async fn retrieve_btc(&self, arg0: RetrieveBtcArgs) -> Result<(RetrieveBtcRet,)> {
-        ic_cdk::call(self.0, "retrieve_btc", (arg0,)).await
-    }
-    pub async fn retrieve_btc_status(
-        &self,
-        arg0: RetrieveBtcStatusArg,
-    ) -> Result<(RetrieveBtcStatus,)> {
-        ic_cdk::call(self.0, "retrieve_btc_status", (arg0,)).await
-    }
-    pub async fn retrieve_btc_status_v_2(
-        &self,
-        arg0: RetrieveBtcStatusV2Arg,
-    ) -> Result<(RetrieveBtcStatusV2,)> {
-        ic_cdk::call(self.0, "retrieve_btc_status_v2", (arg0,)).await
-    }
-    pub async fn retrieve_btc_status_v_2_by_account(
-        &self,
-        arg0: Option<Account>,
-    ) -> Result<(Vec<RetrieveBtcStatusV2ByAccountRetItem>,)> {
-        ic_cdk::call(self.0, "retrieve_btc_status_v2_by_account", (arg0,)).await
-    }
-    pub async fn retrieve_btc_with_approval(
-        &self,
-        arg0: RetrieveBtcWithApprovalArgs,
-    ) -> Result<(RetrieveBtcWithApprovalRet,)> {
-        ic_cdk::call(self.0, "retrieve_btc_with_approval", (arg0,)).await
-    }
-    pub async fn update_balance(&self, arg0: UpdateBalanceArg) -> Result<(UpdateBalanceRet,)> {
-        ic_cdk::call(self.0, "update_balance", (arg0,)).await
-    }
 }

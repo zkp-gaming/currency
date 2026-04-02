@@ -1,5 +1,3 @@
-use std::mem;
-
 use crate::{
     cketh_minter_canister_interface::{
         EventPayload, GetEventsArg, GetEventsRet, LedgerError, MinterInfo, TxFinalizedStatus,
@@ -347,7 +345,7 @@ impl CKERC20TokenWallet {
             from,
             to,
             amount,
-            fee: Some(ic_ledger_types::DEFAULT_FEE.e8s().into()),
+            fee: Some(self.config.fee),
             memo,
             created_at_time,
         };

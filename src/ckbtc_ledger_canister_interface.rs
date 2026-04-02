@@ -2,7 +2,6 @@
 // You may want to manually adjust some of the types.
 #![allow(dead_code, unused_imports)]
 use candid::{self, CandidType, Decode, Deserialize, Encode, Principal};
-use ic_cdk::api::call::CallResult as Result;
 
 #[derive(CandidType, Deserialize)]
 pub struct ChangeArchiveOptions {
@@ -503,94 +502,4 @@ pub struct Icrc3DataCertificate {
 pub struct SupportedBlockType {
     pub url: String,
     pub block_type: String,
-}
-
-pub struct Service(pub Principal);
-impl Service {
-    pub async fn archives(&self) -> Result<(std::vec::Vec<ArchiveInfo>,)> {
-        ic_cdk::call(self.0, "archives", ()).await
-    }
-    pub async fn get_blocks(&self, arg0: GetBlocksRequest) -> Result<(GetBlocksResponse,)> {
-        ic_cdk::call(self.0, "get_blocks", (arg0,)).await
-    }
-    pub async fn get_data_certificate(&self) -> Result<(DataCertificate,)> {
-        ic_cdk::call(self.0, "get_data_certificate", ()).await
-    }
-    pub async fn get_transactions(
-        &self,
-        arg0: GetBlocksRequest,
-    ) -> Result<(GetTransactionsResponse,)> {
-        ic_cdk::call(self.0, "get_transactions", (arg0,)).await
-    }
-    pub async fn icrc_10_supported_standards(&self) -> Result<(std::vec::Vec<StandardRecord>,)> {
-        ic_cdk::call(self.0, "icrc10_supported_standards", ()).await
-    }
-    pub async fn icrc_1_balance_of(&self, arg0: Account) -> Result<(candid::Nat,)> {
-        ic_cdk::call(self.0, "icrc1_balance_of", (arg0,)).await
-    }
-    pub async fn icrc_1_decimals(&self) -> Result<(u8,)> {
-        ic_cdk::call(self.0, "icrc1_decimals", ()).await
-    }
-    pub async fn icrc_1_fee(&self) -> Result<(candid::Nat,)> {
-        ic_cdk::call(self.0, "icrc1_fee", ()).await
-    }
-    pub async fn icrc_1_metadata(&self) -> Result<(std::vec::Vec<(String, MetadataValue)>,)> {
-        ic_cdk::call(self.0, "icrc1_metadata", ()).await
-    }
-    pub async fn icrc_1_minting_account(&self) -> Result<(Option<Account>,)> {
-        ic_cdk::call(self.0, "icrc1_minting_account", ()).await
-    }
-    pub async fn icrc_1_name(&self) -> Result<(String,)> {
-        ic_cdk::call(self.0, "icrc1_name", ()).await
-    }
-    pub async fn icrc_1_supported_standards(&self) -> Result<(std::vec::Vec<StandardRecord>,)> {
-        ic_cdk::call(self.0, "icrc1_supported_standards", ()).await
-    }
-    pub async fn icrc_1_symbol(&self) -> Result<(String,)> {
-        ic_cdk::call(self.0, "icrc1_symbol", ()).await
-    }
-    pub async fn icrc_1_total_supply(&self) -> Result<(candid::Nat,)> {
-        ic_cdk::call(self.0, "icrc1_total_supply", ()).await
-    }
-    pub async fn icrc_1_transfer(&self, arg0: TransferArg) -> Result<(Result_,)> {
-        ic_cdk::call(self.0, "icrc1_transfer", (arg0,)).await
-    }
-    pub async fn icrc_21_canister_call_consent_message(
-        &self,
-        arg0: ConsentMessageRequest,
-    ) -> Result<(Result1,)> {
-        ic_cdk::call(self.0, "icrc21_canister_call_consent_message", (arg0,)).await
-    }
-    pub async fn icrc_2_allowance(&self, arg0: AllowanceArgs) -> Result<(Allowance,)> {
-        ic_cdk::call(self.0, "icrc2_allowance", (arg0,)).await
-    }
-    pub async fn icrc_2_approve(&self, arg0: ApproveArgs) -> Result<(Result2,)> {
-        ic_cdk::call(self.0, "icrc2_approve", (arg0,)).await
-    }
-    pub async fn icrc_2_transfer_from(&self, arg0: TransferFromArgs) -> Result<(Result3,)> {
-        ic_cdk::call(self.0, "icrc2_transfer_from", (arg0,)).await
-    }
-    pub async fn icrc_3_get_archives(
-        &self,
-        arg0: GetArchivesArgs,
-    ) -> Result<(std::vec::Vec<Icrc3ArchiveInfo>,)> {
-        ic_cdk::call(self.0, "icrc3_get_archives", (arg0,)).await
-    }
-    pub async fn icrc_3_get_blocks(
-        &self,
-        arg0: std::vec::Vec<GetBlocksRequest>,
-    ) -> Result<(GetBlocksResult,)> {
-        ic_cdk::call(self.0, "icrc3_get_blocks", (arg0,)).await
-    }
-    pub async fn icrc_3_get_tip_certificate(&self) -> Result<(Option<Icrc3DataCertificate>,)> {
-        ic_cdk::call(self.0, "icrc3_get_tip_certificate", ()).await
-    }
-    pub async fn icrc_3_supported_block_types(
-        &self,
-    ) -> Result<(std::vec::Vec<SupportedBlockType>,)> {
-        ic_cdk::call(self.0, "icrc3_supported_block_types", ()).await
-    }
-    pub async fn is_ledger_ready(&self) -> Result<(bool,)> {
-        ic_cdk::call(self.0, "is_ledger_ready", ()).await
-    }
 }
