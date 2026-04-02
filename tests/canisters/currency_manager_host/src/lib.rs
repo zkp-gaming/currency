@@ -90,9 +90,11 @@ async fn withdraw(
     memo: Option<Vec<u8>>,
     created_at_time: Option<u64>,
 ) -> Result<(), CurrencyError> {
+    let mut transaction_state = TRANSACTION_STATE.with(|state| state.borrow().clone());
     manager_for_currency(&currency)
         .await?
         .withdraw(
+            &mut transaction_state,
             &currency,
             to_principal,
             subaccount,
@@ -100,7 +102,9 @@ async fn withdraw(
             memo,
             created_at_time,
         )
-        .await
+        .await?;
+    TRANSACTION_STATE.with(|state| *state.borrow_mut() = transaction_state);
+    Ok(())
 }
 
 #[update]

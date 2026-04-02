@@ -9,7 +9,6 @@ use crate::{
 };
 use num_traits::ToPrimitive;
 use crate::{
-    state::TransactionState,
     types::{
         canister_wallet::CanisterWallet,
         constants::{BTC_DECIMALS, BTC_LEDGER_CANISTER_ID, BTC_MINTER_CANISTER_ID},
@@ -286,7 +285,6 @@ impl CKBTCTokenWallet {
 impl CanisterWallet for CKBTCTokenWallet {
     async fn deposit(
         &self,
-        transaction_state: &mut TransactionState,
         from_principal: Principal,
         subaccount: Option<Vec<u8>>,
         amount: u64,
@@ -310,19 +308,9 @@ impl CanisterWallet for CKBTCTokenWallet {
         }
 
         // Transfer the tokens using the allowance
-        let block_index = self
+        self
             .transfer_from(from_principal, subaccount, amount, memo, created_at_time)
             .await?;
-
-        // Record the transaction
-        let tx_id = format!(
-            "CKBTC-DEPOSIT-{}-{}-{}",
-            block_index,
-            from_principal,
-            ic_cdk::api::time()
-        );
-
-        transaction_state.add_transaction(tx_id);
 
         // Update the balance to make sure we have the latest state
         // This isn't strictly necessary but helps keep state consistent

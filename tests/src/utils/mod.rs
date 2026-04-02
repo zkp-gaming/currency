@@ -9,8 +9,12 @@ use ic_ledger_types::{
     AccountIdentifier, Memo, Tokens, TransferArgs, TransferResult, DEFAULT_FEE,
     DEFAULT_SUBACCOUNT,
 };
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::TestEnv;
+
+const TEST_CREATED_AT_TIME_START: u64 = 1_620_328_630_000_001_000;
+static NEXT_CREATED_AT_TIME: AtomicU64 = AtomicU64::new(TEST_CREATED_AT_TIME_START);
 
 #[derive(CandidType, Clone, candid::Deserialize, Debug, PartialEq, Eq)]
 pub struct AccountView {
@@ -20,6 +24,10 @@ pub struct AccountView {
 
 pub fn test_principal(label: &str) -> Principal {
     Principal::self_authenticating(label.as_bytes())
+}
+
+pub fn next_created_at_time() -> u64 {
+    NEXT_CREATED_AT_TIME.fetch_add(1, Ordering::Relaxed)
 }
 
 pub fn update_call<Args, Reply>(
@@ -338,7 +346,15 @@ pub fn manager_deposit(
     from_principal: Principal,
     amount: u64,
 ) -> Result<(), CurrencyError> {
-    manager_deposit_with_args(env, currency, from_principal, None, amount, None, None)
+    manager_deposit_with_args(
+        env,
+        currency,
+        from_principal,
+        None,
+        amount,
+        None,
+        Some(next_created_at_time()),
+    )
 }
 
 pub fn manager_deposit_with_args(
@@ -382,7 +398,15 @@ pub fn manager_withdraw(
     to_principal: Principal,
     amount: u64,
 ) -> Result<(), CurrencyError> {
-    manager_withdraw_with_args(env, currency, to_principal, None, amount, None, None)
+    manager_withdraw_with_args(
+        env,
+        currency,
+        to_principal,
+        None,
+        amount,
+        None,
+        Some(next_created_at_time()),
+    )
 }
 
 pub fn manager_withdraw_with_args(

@@ -1,7 +1,6 @@
 use crate::{
     currency_error::CurrencyError,
     icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError},
-    state::TransactionState,
     transfer::transfer_icrc1,
     types::canister_wallet::CanisterWallet,
     utils::get_canister_state,
@@ -244,7 +243,6 @@ impl GenericICRC1TokenWallet {
 impl CanisterWallet for GenericICRC1TokenWallet {
     async fn deposit(
         &self,
-        transaction_state: &mut TransactionState,
         from_principal: Principal,
         subaccount: Option<Vec<u8>>,
         amount: u64,
@@ -275,20 +273,9 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         }
 
         // Transfer the tokens using the allowance
-        let block_index = self
+        self
             .transfer_from(from_principal, subaccount, amount, memo, created_at_time)
             .await?;
-
-        // Record the transaction
-        let tx_id = format!(
-            "{}-DEPOSIT-{}-{}-{}",
-            self.metadata.symbol,
-            block_index,
-            from_principal,
-            ic_cdk::api::time()
-        );
-
-        transaction_state.add_transaction(tx_id);
 
         Ok(())
     }

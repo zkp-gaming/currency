@@ -7,9 +7,7 @@ use candid::{CandidType, Principal};
 use ic_ledger_types::Timestamp;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    state::TransactionState, types::canister_wallet::CanisterWallet, utils::get_canister_state,
-};
+use crate::{types::canister_wallet::CanisterWallet, utils::get_canister_state};
 
 pub const ICP_LEDGER_CANISTER_ID: &str = "ryjl3-tyaaa-aaaaa-aaaba-cai";
 
@@ -150,7 +148,6 @@ impl ICPCanisterWallet {
 impl CanisterWallet for ICPCanisterWallet {
     async fn deposit(
         &self,
-        transaction_state: &mut TransactionState,
         from_principal: Principal,
         subaccount: Option<Vec<u8>>,
         amount: u64,
@@ -174,19 +171,9 @@ impl CanisterWallet for ICPCanisterWallet {
         }
 
         // Transfer the tokens using the allowance
-        let block_index = self
+        self
             .transfer_from(from_principal, subaccount, amount, memo, created_at_time)
             .await?;
-
-        // Record the transaction
-        let tx_id = format!(
-            "ICP-DEPOSIT-{}-{}-{}",
-            block_index,
-            from_principal,
-            ic_cdk::api::time()
-        );
-
-        transaction_state.add_transaction(tx_id);
 
         Ok(())
     }

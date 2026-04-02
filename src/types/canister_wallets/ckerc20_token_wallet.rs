@@ -9,7 +9,6 @@ use candid::{CandidType, Principal};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    state::TransactionState,
     types::{
         canister_wallet::CanisterWallet,
         constants::{
@@ -438,7 +437,6 @@ impl CKERC20TokenWallet {
 impl CanisterWallet for CKERC20TokenWallet {
     async fn deposit(
         &self,
-        transaction_state: &mut TransactionState,
         from_principal: Principal,
         subaccount: Option<Vec<u8>>,
         amount: u64,
@@ -474,7 +472,7 @@ impl CanisterWallet for CKERC20TokenWallet {
         };
 
         // Transfer tokens using allowance
-        let block_index = self.transfer_from(
+        self.transfer_from(
             self.config.ledger_id,
             from_account,
             spender_account,
@@ -483,15 +481,6 @@ impl CanisterWallet for CKERC20TokenWallet {
             created_at_time
         )
         .await?;
-
-        // Add transaction to state
-        let tx_id = format!(
-            "CKERC20-DEPOSIT-{}-{}-{}",
-            block_index,
-            from_principal,
-            ic_cdk::api::time()
-        );
-        transaction_state.add_transaction(tx_id);
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 use candid::Principal;
 
-use crate::{currency_error::CurrencyError, state::TransactionState};
+use crate::currency_error::CurrencyError;
 
 use super::canister_wallets::{
     ckerc20_token_wallet::CKERC20TokenWallet, icp_canister_wallet::ICPCanisterWallet,
@@ -15,7 +15,6 @@ pub(crate) trait CanisterWallet: Send + Sync {
     /** Deposit to the canisters wallet */
     async fn deposit(
         &self,
-        transaction_state: &mut TransactionState,
         from_principal: Principal,
         subaccount: Option<Vec<u8>>,
         amount: u64,
