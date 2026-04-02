@@ -1,5 +1,3 @@
-use std::mem;
-
 use crate::{
     cketh_minter_canister_interface::{
         EventPayload, GetEventsArg, GetEventsRet, LedgerError, MinterInfo, TxFinalizedStatus,
@@ -11,10 +9,12 @@ use candid::{CandidType, Principal};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    state::TransactionState,
     types::{
         canister_wallet::CanisterWallet,
         constants::{
+            CKSEPOLIA_ETH_DECIMALS, CKSEPOLIA_ETH_LEDGER_CANISTER_ID,
+            CKSEPOLIA_ETH_MINTER_CANISTER_ID, CKSEPOLIA_USDC_DECIMALS,
+            CKSEPOLIA_USDC_LEDGER_CANISTER_ID, CKSEPOLIA_USDC_MINTER_CANISTER_ID,
             ETH_DECIMALS, ETH_LEDGER_CANISTER_ID, ETH_MINTER_CANISTER_ID, USDC_DECIMALS,
             USDC_LEDGER_CANISTER_ID, USDC_MINTER_CANISTER_ID, USDT_DECIMALS,
             USDT_LEDGER_CANISTER_ID, USDT_MINTER_CANISTER_ID,
@@ -67,16 +67,33 @@ impl CKERC20TokenWallet {
                 decimals: ETH_DECIMALS,
                 fee: 2_000_000_000_000,
             },
+            CKTokenSymbol::SepoliaETH => CKTokenConfig {
+                minter_id: Principal::from_text(CKSEPOLIA_ETH_MINTER_CANISTER_ID).unwrap(),
+                ledger_id: Principal::from_text(CKSEPOLIA_ETH_LEDGER_CANISTER_ID).unwrap(),
+                token_symbol: crate::Currency::CKETHToken(symbol),
+                decimals: CKSEPOLIA_ETH_DECIMALS,
+                fee: 10_000_000_000,
+            },
+            CKTokenSymbol::SepoliaUSDC => CKTokenConfig {
+                minter_id: Principal::from_text(CKSEPOLIA_USDC_MINTER_CANISTER_ID).unwrap(),
+                ledger_id: Principal::from_text(CKSEPOLIA_USDC_LEDGER_CANISTER_ID).unwrap(),
+                token_symbol: crate::Currency::CKETHToken(symbol),
+                decimals: CKSEPOLIA_USDC_DECIMALS,
+                fee: 4_000,
+            },
         };
         Self { config }
     }
 
     pub async fn get_deposit_address(&self) -> Result<Option<String>, CurrencyError> {
         // Call the minter's smart_contract_address function directly
-        let (deposit_address,): (Option<String>,) =
-            ic_cdk::call(self.config.minter_id, "smart_contract_address", ())
+        let response =
+            ic_cdk::call::Call::unbounded_wait(self.config.minter_id, "smart_contract_address")
                 .await
                 .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        let (deposit_address,): (Option<String>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
 
         Ok(deposit_address)
     }
@@ -94,10 +111,13 @@ impl CKERC20TokenWallet {
     /// - Error if the helper contract address is not configured in the minter
     pub async fn get_deposit_address_for_principal(&self) -> Result<String, CurrencyError> {
         // Get the deposit with subaccount helper contract address
-        let (minter_info,): (MinterInfo,) =
-            ic_cdk::call(self.config.minter_id, "get_minter_info", ())
+        let response =
+            ic_cdk::call::Call::unbounded_wait(self.config.minter_id, "get_minter_info")
                 .await
                 .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        let (minter_info,): (MinterInfo,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
 
         minter_info
             .deposit_with_subaccount_helper_contract_address
@@ -119,10 +139,13 @@ impl CKERC20TokenWallet {
                 length: 100,
             };
 
-            let (events,): (GetEventsRet,) =
-                ic_cdk::call(self.config.minter_id, "get_events", (events_arg,))
-                    .await
-                    .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+            let response = ic_cdk::call::Call::unbounded_wait(self.config.minter_id, "get_events")
+                .with_arg(events_arg)
+                .await
+                .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+            let (events,): (GetEventsRet,) = response
+                .candid_tuple()
+                .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
 
             // Look for MintedCkErc20 event with matching transaction hash
             for event in events.events {
@@ -161,10 +184,13 @@ impl CKERC20TokenWallet {
         };
 
         // Call minter to initiate withdrawal
-        let (result,): (WithdrawErc20Ret,) =
-            ic_cdk::call(self.config.minter_id, "withdraw_erc20", (withdraw_arg,))
-                .await
-                .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.config.minter_id, "withdraw_erc20")
+            .with_arg(withdraw_arg)
+            .await
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        let (result,): (WithdrawErc20Ret,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
 
         match result {
             WithdrawErc20Ret::Ok(_) => Ok(()),
@@ -273,13 +299,16 @@ impl CKERC20TokenWallet {
         &self,
         withdrawal_id: u64,
     ) -> Result<CKTokenWithdrawalStatus, CurrencyError> {
-        let (status,): (Vec<WithdrawalDetail>,) = ic_cdk::call(
+        let response = ic_cdk::call::Call::unbounded_wait(
             self.config.minter_id,
             "withdrawal_status",
-            (WithdrawalSearchParameter::ByWithdrawalId(withdrawal_id),),
         )
+        .with_arg(WithdrawalSearchParameter::ByWithdrawalId(withdrawal_id))
         .await
         .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        let (status,): (Vec<WithdrawalDetail>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
 
         let detail = status.first().ok_or(CurrencyError::WithdrawalFailed(
             "Withdrawal not found".to_string(),
@@ -326,8 +355,12 @@ impl CKERC20TokenWallet {
     ) -> Result<Allowance, CurrencyError> {
         let args = AllowanceArgs { account, spender };
 
-        let (allowance,): (Allowance,) = ic_cdk::call(ledger, "icrc2_allowance", (args,))
+        let response = ic_cdk::call::Call::unbounded_wait(ledger, "icrc2_allowance")
+            .with_arg(args)
             .await
+            .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
+        let (allowance,): (Allowance,) = response
+            .candid_tuple()
             .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
 
         Ok(allowance)
@@ -347,15 +380,18 @@ impl CKERC20TokenWallet {
             from,
             to,
             amount,
-            fee: Some(ic_ledger_types::DEFAULT_FEE.e8s().into()),
+            fee: Some(self.config.fee),
             memo,
             created_at_time,
         };
 
-        let (result,): (Result<u128, TransferFromError>,) =
-            ic_cdk::call(ledger, "icrc2_transfer_from", (args,))
-                .await
-                .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(ledger, "icrc2_transfer_from")
+            .with_arg(args)
+            .await
+            .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
+        let (result,): (Result<u128, TransferFromError>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
 
         match result {
             Ok(block_index) => Ok(block_index),
@@ -376,6 +412,7 @@ impl CKERC20TokenWallet {
         ledger: Principal,
         spender: Principal,
         amount: u128,
+        from_subaccount: Option<Vec<u8>>,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
@@ -389,14 +426,17 @@ impl CKERC20TokenWallet {
             expires_at: None,
             fee: Some(self.config.fee),
             memo,
-            from_subaccount: None,
+            from_subaccount,
             created_at_time,
         };
 
-        let (result,): (Result<u128, ApproveError>,) =
-            ic_cdk::call(ledger, "icrc2_approve", (approve_args,))
-                .await
-                .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(ledger, "icrc2_approve")
+            .with_arg(approve_args)
+            .await
+            .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+        let (result,): (Result<u128, ApproveError>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
 
         match result {
             Ok(_) => Ok(()),
@@ -414,8 +454,8 @@ impl CKERC20TokenWallet {
 impl CanisterWallet for CKERC20TokenWallet {
     async fn deposit(
         &self,
-        transaction_state: &mut TransactionState,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
@@ -425,7 +465,7 @@ impl CanisterWallet for CKERC20TokenWallet {
         // Check allowance
         let from_account = Account {
             owner: from_principal,
-            subaccount: None,
+            subaccount: subaccount.clone(),
         };
         let spender_account = Account {
             owner: canister_state.owner,
@@ -441,7 +481,7 @@ impl CanisterWallet for CKERC20TokenWallet {
 
         let from_account = Account {
             owner: from_principal,
-            subaccount: None,
+            subaccount,
         };
         let spender_account = Account {
             owner: canister_state.owner,
@@ -449,7 +489,7 @@ impl CanisterWallet for CKERC20TokenWallet {
         };
 
         // Transfer tokens using allowance
-        let block_index = self.transfer_from(
+        self.transfer_from(
             self.config.ledger_id,
             from_account,
             spender_account,
@@ -459,28 +499,22 @@ impl CanisterWallet for CKERC20TokenWallet {
         )
         .await?;
 
-        // Add transaction to state
-        let tx_id = format!(
-            "CKERC20-DEPOSIT-{}-{}-{}",
-            block_index,
-            from_principal,
-            ic_cdk::api::time()
-        );
-        transaction_state.add_transaction(tx_id);
-
         Ok(())
     }
 
     async fn validate_allowance(
         &self, 
         from_principal: Principal, 
-        amount: u64
+        subaccount: Option<Vec<u8>>,
+        amount: u64,
+        _memo: Option<Vec<u8>>,
+        _created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         let canister_state = get_canister_state();
 
         let from_account = Account {
             owner: from_principal,
-            subaccount: None,
+            subaccount,
         };
         let spender_account = Account {
             owner: canister_state.owner,
@@ -506,19 +540,19 @@ impl CanisterWallet for CKERC20TokenWallet {
     async fn withdraw(
         &self,
         wallet_principal_id: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
-        let default_subaccount = {
-            let canister_state = get_canister_state();
-            canister_state.default_subaccount.0
-        };
+        let from_subaccount =
+            subaccount.or_else(|| Some(get_canister_state().default_subaccount.0.to_vec()));
 
         transfer_icrc1(
             self.config.ledger_id,
             amount,
-            default_subaccount.to_vec(),
+            from_subaccount,
+            Some(get_canister_state().default_subaccount.0.to_vec()),
             wallet_principal_id,
             Some(self.config.fee),
             memo,
@@ -539,15 +573,20 @@ impl CanisterWallet for CKERC20TokenWallet {
             subaccount: Some(default_subaccount.to_vec()),
         };
         
-        let (balance,): (candid::Nat,) = ic_cdk::call(
+        let response = ic_cdk::call::Call::unbounded_wait(
             self.config.ledger_id,
-            "icrc1_balance_of", 
-            (account,)
+            "icrc1_balance_of",
         )
+        .with_arg(account)
         .await
         .map_err(|e| CurrencyError::LedgerError(
             format!("Failed to query {:?} balance: {:?}", self.config.token_symbol, e)
         ))?;
+        let (balance,): (candid::Nat,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::LedgerError(
+                format!("Failed to decode {:?} balance: {:?}", self.config.token_symbol, e)
+            ))?;
         
         // Convert the candid::Nat to u128
         let balance_str = balance.0.to_string();

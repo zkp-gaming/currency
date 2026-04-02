@@ -73,4 +73,7 @@ pub enum CurrencyError {
 
     #[error("Duplicate transaction: {id}")]
     DuplicateTransaction { id: u128 },
+
+    #[error("missing created_at_time for idempotent request")]
+    MissingCreatedAtTime,
 }

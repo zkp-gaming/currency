@@ -16,7 +16,7 @@ pub fn create_default_subaccount() -> Subaccount {
 
 // This should be handled in a separate library alltogether
 pub fn get_canister_state() -> CanisterState {
-    let owner_principal = ic_cdk::api::id();
+    let owner_principal = ic_cdk::api::canister_self();
     let default_subaccount = create_default_subaccount();
 
     let account_identifier = AccountIdentifier::new(&owner_principal, &default_subaccount);

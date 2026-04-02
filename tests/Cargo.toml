@@ -1,0 +1,13 @@
+[package]
+name = "currency-e2e-tests"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+candid = "0.10.22"
+currency = { path = ".." }
+ic-ledger-types = "0.16.0"
+lazy_static = "1.5.0"
+pocket-ic = "13.0.0"
+serde = { version = "1.0.227", features = ["derive"] }
+serde_bytes = "0.11.17"

@@ -1,7 +1,6 @@
 use crate::{
     currency_error::CurrencyError,
     icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError},
-    state::TransactionState,
     transfer::transfer_icrc1,
     types::canister_wallet::CanisterWallet,
     utils::get_canister_state,
@@ -49,29 +48,44 @@ impl GenericICRC1TokenWallet {
     /// Query token metadata from the ledger canister
     pub async fn query_token_metadata(ledger_id: Principal) -> Result<ICRC1TokenMetadata, CurrencyError> {
         // Query name
-        let (name,): (String,) = ic_cdk::call(ledger_id, "icrc1_name", ())
+        let response = ic_cdk::call::Call::unbounded_wait(ledger_id, "icrc1_name")
             .await
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to query token name: {:?}", e)))?;
+        let (name,): (String,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to decode token name: {:?}", e)))?;
         
         // Query symbol
-        let (symbol,): (String,) = ic_cdk::call(ledger_id, "icrc1_symbol", ())
+        let response = ic_cdk::call::Call::unbounded_wait(ledger_id, "icrc1_symbol")
             .await
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to query token symbol: {:?}", e)))?;
+        let (symbol,): (String,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to decode token symbol: {:?}", e)))?;
         
         // Query decimals
-        let (decimals,): (u8,) = ic_cdk::call(ledger_id, "icrc1_decimals", ())
+        let response = ic_cdk::call::Call::unbounded_wait(ledger_id, "icrc1_decimals")
             .await
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to query token decimals: {:?}", e)))?;
+        let (decimals,): (u8,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to decode token decimals: {:?}", e)))?;
         
         // Query fee
-        let (fee,): (candid::Nat,) = ic_cdk::call(ledger_id, "icrc1_fee", ())
+        let response = ic_cdk::call::Call::unbounded_wait(ledger_id, "icrc1_fee")
             .await
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to query token fee: {:?}", e)))?;
+        let (fee,): (candid::Nat,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to decode token fee: {:?}", e)))?;
         
         // Query supported standards
-        let (standards,): (Vec<StandardRecord>,) = ic_cdk::call(ledger_id, "icrc1_supported_standards", ())
+        let response = ic_cdk::call::Call::unbounded_wait(ledger_id, "icrc1_supported_standards")
             .await
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to query supported standards: {:?}", e)))?;
+        let (standards,): (Vec<StandardRecord>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to decode supported standards: {:?}", e)))?;
         
         Ok(ICRC1TokenMetadata {
             name,
@@ -91,6 +105,7 @@ impl GenericICRC1TokenWallet {
     pub async fn check_allowance(
         &self,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
     ) -> Result<Allowance, CurrencyError> {
         if !self.supports_icrc2() {
             return Err(CurrencyError::OperationNotSupported(
@@ -101,18 +116,21 @@ impl GenericICRC1TokenWallet {
         let args = AllowanceArgs {
             account: Account {
                 owner: from_principal,
-                subaccount: None,
+                subaccount,
             },
             spender: Account {
-                owner: ic_cdk::api::id(),
+                owner: ic_cdk::api::canister_self(),
                 subaccount: None,
             },
         };
 
-        let (allowance,): (Allowance,) =
-            ic_cdk::call(self.ledger_id, "icrc2_allowance", (args,))
-                .await
-                .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.ledger_id, "icrc2_allowance")
+            .with_arg(args)
+            .await
+            .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
+        let (allowance,): (Allowance,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
 
         Ok(allowance)
     }
@@ -121,6 +139,7 @@ impl GenericICRC1TokenWallet {
     pub async fn transfer_from(
         &self,
         from_principal: Principal,
+        from_subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
@@ -132,13 +151,13 @@ impl GenericICRC1TokenWallet {
         }
         
         let canister_account = Account {
-            owner: ic_cdk::api::id(),
+            owner: ic_cdk::api::canister_self(),
             subaccount: None,
         };
 
         let from_account = Account {
             owner: from_principal,
-            subaccount: None,
+            subaccount: from_subaccount,
         };
 
         let args = TransferFromArg {
@@ -151,10 +170,13 @@ impl GenericICRC1TokenWallet {
             created_at_time,
         };
 
-        let (result,): (Result<u128, TransferFromError>,) =
-            ic_cdk::call(self.ledger_id, "icrc2_transfer_from", (args,))
-                .await
-                .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.ledger_id, "icrc2_transfer_from")
+            .with_arg(args)
+            .await
+            .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
+        let (result,): (Result<u128, TransferFromError>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
 
         match result {
             Ok(block_index) => Ok(block_index),
@@ -174,6 +196,7 @@ impl GenericICRC1TokenWallet {
         &self,
         spender: Principal,
         amount: u128,
+        from_subaccount: Option<Vec<u8>>,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
@@ -193,14 +216,17 @@ impl GenericICRC1TokenWallet {
             expires_at: None,
             fee: Some(self.metadata.fee),
             memo,
-            from_subaccount: None,
+            from_subaccount,
             created_at_time,
         };
 
-        let (result,): (Result<u128, ApproveError>,) =
-            ic_cdk::call(self.ledger_id, "icrc2_approve", (approve_args,))
-                .await
-                .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.ledger_id, "icrc2_approve")
+            .with_arg(approve_args)
+            .await
+            .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+        let (result,): (Result<u128, ApproveError>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
 
         match result {
             Ok(_) => Ok(()),
@@ -217,8 +243,8 @@ impl GenericICRC1TokenWallet {
 impl CanisterWallet for GenericICRC1TokenWallet {
     async fn deposit(
         &self,
-        transaction_state: &mut TransactionState,
         from_principal: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
@@ -231,7 +257,9 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         }
         
         // Check the allowance to make sure it's sufficient
-        let allowance = self.check_allowance(from_principal).await?;
+        let allowance = self
+            .check_allowance(from_principal, subaccount.clone())
+            .await?;
 
         if allowance.allowance < amount as u128 {
             return Err(CurrencyError::InsufficientAllowance);
@@ -245,18 +273,9 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         }
 
         // Transfer the tokens using the allowance
-        let block_index = self.transfer_from(from_principal, amount, memo, created_at_time).await?;
-
-        // Record the transaction
-        let tx_id = format!(
-            "{}-DEPOSIT-{}-{}-{}",
-            self.metadata.symbol,
-            block_index,
-            from_principal,
-            ic_cdk::api::time()
-        );
-
-        transaction_state.add_transaction(tx_id);
+        self
+            .transfer_from(from_principal, subaccount, amount, memo, created_at_time)
+            .await?;
 
         Ok(())
     }
@@ -264,7 +283,10 @@ impl CanisterWallet for GenericICRC1TokenWallet {
     async fn validate_allowance(
         &self, 
         from_principal: Principal, 
-        amount: u64
+        subaccount: Option<Vec<u8>>,
+        amount: u64,
+        _memo: Option<Vec<u8>>,
+        _created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
         // Check if ICRC-2 is supported
         if !self.supports_icrc2() {
@@ -274,7 +296,7 @@ impl CanisterWallet for GenericICRC1TokenWallet {
         }
         
         // Check the allowance to make sure it's sufficient
-        let allowance = self.check_allowance(from_principal).await?;
+        let allowance = self.check_allowance(from_principal, subaccount).await?;
         
         if allowance.allowance < amount as u128 {
             return Err(CurrencyError::InsufficientAllowance);
@@ -293,19 +315,19 @@ impl CanisterWallet for GenericICRC1TokenWallet {
     async fn withdraw(
         &self,
         wallet_principal_id: Principal,
+        subaccount: Option<Vec<u8>>,
         amount: u64,
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
-        let default_subaccount = {
-            let canister_state = get_canister_state();
-            canister_state.default_subaccount.0.to_vec()
-        };
+        let from_subaccount =
+            subaccount.or_else(|| Some(get_canister_state().default_subaccount.0.to_vec()));
 
         transfer_icrc1(
             self.ledger_id,
             amount,
-            default_subaccount,
+            from_subaccount,
+            Some(get_canister_state().default_subaccount.0.to_vec()),
             wallet_principal_id,
             Some(self.metadata.fee),
             memo,
@@ -326,15 +348,20 @@ impl CanisterWallet for GenericICRC1TokenWallet {
             subaccount: Some(default_subaccount),
         };
         
-        let (balance,): (candid::Nat,) = ic_cdk::call(
+        let response = ic_cdk::call::Call::unbounded_wait(
             self.ledger_id,
-            "icrc1_balance_of", 
-            (account,)
+            "icrc1_balance_of",
         )
+        .with_arg(account)
         .await
         .map_err(|e| CurrencyError::LedgerError(
             format!("Failed to query {} balance: {:?}", self.metadata.symbol, e)
         ))?;
+        let (balance,): (candid::Nat,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::LedgerError(
+                format!("Failed to decode {} balance: {:?}", self.metadata.symbol, e)
+            ))?;
         
         // Convert candid::Nat to u128
         let balance_str = balance.0.to_string();

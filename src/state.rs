@@ -1,14 +1,14 @@
 use candid::{CandidType, Decode, Encode};
 use ic_stable_structures::{storable::Bound, Storable};
 use serde::{Deserialize, Serialize};
-use std::{borrow::Cow, collections::HashSet};
+use std::{borrow::Cow, collections::HashMap};
 
 const REMOVE_PERCENTAGE: usize = 20;
 const MAX_VALUE_SIZE_TRANSACTION_STATE: u32 = 2_000_000;
 
 #[derive(Debug, Clone, PartialEq, CandidType, Deserialize, Serialize)]
 pub struct TransactionState {
-    processed_transactions: HashSet<String>,
+    processed_transactions: HashMap<String, u64>,
 }
 
 impl Default for TransactionState {
@@ -20,27 +20,16 @@ impl Default for TransactionState {
 impl TransactionState {
     pub fn new() -> TransactionState {
         TransactionState {
-            processed_transactions: HashSet::new(),
+            processed_transactions: HashMap::new(),
         }
     }
 
-    pub fn add_transaction(&mut self, transaction_id: String) {
+    pub fn add_transaction(&mut self, transaction_id: String, timestamp: u64) {
         if self.processed_transactions.len() >= MAX_VALUE_SIZE_TRANSACTION_STATE as usize / 100 {
-            // Extract timestamps and sort
-            let mut transactions: Vec<(i64, String)> = self
+            let mut transactions: Vec<(u64, String)> = self
                 .processed_transactions
                 .iter()
-                .filter_map(|tx| {
-                    // Split by last hyphen to get timestamp
-                    let parts: Vec<&str> = tx.rsplitn(2, '-').collect();
-                    if parts.len() == 2 {
-                        // Parse timestamp
-                        if let Ok(timestamp) = parts[0].parse::<i64>() {
-                            return Some((timestamp, tx.to_string()));
-                        }
-                    }
-                    None
-                })
+                .map(|(tx_id, timestamp)| (*timestamp, tx_id.clone()))
                 .collect();
 
             // Sort by timestamp (oldest first)
@@ -48,26 +37,39 @@ impl TransactionState {
 
             // Remove oldest transactions
             let remove_count = (self.processed_transactions.len() * REMOVE_PERCENTAGE) / 100;
-            let keep_transactions: HashSet<String> = transactions
+            let keep_transactions: HashMap<String, u64> = transactions
                 .into_iter()
                 .skip(remove_count) // Skip oldest transactions
-                .map(|(_, tx_id)| tx_id)
+                .map(|(timestamp, tx_id)| (tx_id, timestamp))
                 .collect();
 
             self.processed_transactions = keep_transactions;
         }
 
-        self.processed_transactions.insert(transaction_id);
+        self.processed_transactions.insert(transaction_id, timestamp);
     }
 
     pub fn transaction_exists(&self, transaction_id: &str) -> bool {
-        self.processed_transactions.contains(transaction_id)
+        self.processed_transactions.contains_key(transaction_id)
+    }
+
+    pub fn check_and_record(&mut self, transaction_id: String, timestamp: u64) -> bool {
+        if self.transaction_exists(&transaction_id) {
+            return false;
+        }
+
+        self.add_transaction(transaction_id, timestamp);
+        true
+    }
+
+    pub fn remove_transaction(&mut self, transaction_id: &str) {
+        self.processed_transactions.remove(transaction_id);
     }
 }
 
 impl Storable for TransactionState {
     /// Serializes the struct into a byte array.
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+    fn to_bytes(&self) -> std::borrow::Cow<'_, [u8]> {
         match Encode!(self) {
             Ok(bytes) => Cow::Owned(bytes),
             Err(e) => {
@@ -102,4 +104,26 @@ impl Storable for TransactionState {
         max_size: MAX_VALUE_SIZE_TRANSACTION_STATE,
         is_fixed_size: false,
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TransactionState;
+
+    #[test]
+    fn check_and_record_rejects_duplicates() {
+        let mut state = TransactionState::new();
+
+        assert!(state.check_and_record("request-a".to_string(), 1));
+        assert!(!state.check_and_record("request-a".to_string(), 1));
+    }
+
+    #[test]
+    fn remove_transaction_allows_retry() {
+        let mut state = TransactionState::new();
+
+        assert!(state.check_and_record("request-a".to_string(), 1));
+        state.remove_transaction("request-a");
+        assert!(state.check_and_record("request-a".to_string(), 1));
+    }
 }

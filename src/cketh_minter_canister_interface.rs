@@ -2,7 +2,6 @@
 // You may want to manually adjust some of the types.
 #![allow(dead_code, unused_imports)]
 use candid::{self, CandidType, Decode, Deserialize, Encode, Principal};
-use ic_cdk::api::call::CallResult as Result;
 
 #[derive(CandidType, Deserialize)]
 pub enum BlockTag {
@@ -501,50 +500,4 @@ pub struct WithdrawalDetail {
     pub from_subaccount: Option<serde_bytes::ByteBuf>,
     pub max_transaction_fee: Option<candid::Nat>,
     pub recipient_address: String,
-}
-
-pub struct Service(pub Principal);
-impl Service {
-    pub async fn add_ckerc_20_token(&self, arg0: AddCkErc20Token) -> Result<()> {
-        ic_cdk::call(self.0, "add_ckerc20_token", (arg0,)).await
-    }
-    pub async fn eip_1559_transaction_price(
-        &self,
-        arg0: Option<Eip1559TransactionPriceArg>,
-    ) -> Result<(Eip1559TransactionPrice,)> {
-        ic_cdk::call(self.0, "eip_1559_transaction_price", (arg0,)).await
-    }
-    pub async fn get_canister_status(&self) -> Result<(CanisterStatusResponse,)> {
-        ic_cdk::call(self.0, "get_canister_status", ()).await
-    }
-    pub async fn get_events(&self, arg0: GetEventsArg) -> Result<(GetEventsRet,)> {
-        ic_cdk::call(self.0, "get_events", (arg0,)).await
-    }
-    pub async fn get_minter_info(&self) -> Result<(MinterInfo,)> {
-        ic_cdk::call(self.0, "get_minter_info", ()).await
-    }
-    pub async fn is_address_blocked(&self, arg0: String) -> Result<(bool,)> {
-        ic_cdk::call(self.0, "is_address_blocked", (arg0,)).await
-    }
-    pub async fn minter_address(&self) -> Result<(String,)> {
-        ic_cdk::call(self.0, "minter_address", ()).await
-    }
-    pub async fn retrieve_eth_status(&self, arg0: u64) -> Result<(RetrieveEthStatus,)> {
-        ic_cdk::call(self.0, "retrieve_eth_status", (arg0,)).await
-    }
-    pub async fn smart_contract_address(&self) -> Result<(String,)> {
-        ic_cdk::call(self.0, "smart_contract_address", ()).await
-    }
-    pub async fn withdraw_erc_20(&self, arg0: WithdrawErc20Arg) -> Result<(WithdrawErc20Ret,)> {
-        ic_cdk::call(self.0, "withdraw_erc20", (arg0,)).await
-    }
-    pub async fn withdraw_eth(&self, arg0: WithdrawalArg) -> Result<(WithdrawEthRet,)> {
-        ic_cdk::call(self.0, "withdraw_eth", (arg0,)).await
-    }
-    pub async fn withdrawal_status(
-        &self,
-        arg0: WithdrawalSearchParameter,
-    ) -> Result<(Vec<WithdrawalDetail>,)> {
-        ic_cdk::call(self.0, "withdrawal_status", (arg0,)).await
-    }
 }
