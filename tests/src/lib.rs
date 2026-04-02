@@ -3,6 +3,8 @@
 mod currency_manager_btc_tests;
 mod currency_manager_argument_tests;
 mod currency_manager_cketh_tests;
+mod currency_manager_cksepoliaeth_tests;
+mod currency_manager_cksepoliausdc_tests;
 mod currency_manager_ckusdc_tests;
 mod currency_manager_ckusdt_tests;
 mod currency_manager_icp_tests;

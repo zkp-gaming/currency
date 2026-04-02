@@ -98,6 +98,8 @@ impl ICRC1TokenRegistry {
             "ckETH" => Some(Currency::CKETHToken(CKTokenSymbol::ETH)),
             "ckUSDC" => Some(Currency::CKETHToken(CKTokenSymbol::USDC)),
             "ckUSDT" => Some(Currency::CKETHToken(CKTokenSymbol::USDT)),
+            "ckSepoliaETH" => Some(Currency::CKETHToken(CKTokenSymbol::SepoliaETH)),
+            "ckSepoliaUSDC" => Some(Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC)),
             // For any other token, we can create a new Currency variant
             // This would require extending your Currency enum
             symbol => Some(Currency::GenericICRC1(Token::from_string(*ledger_id, symbol, metadata.decimals))),

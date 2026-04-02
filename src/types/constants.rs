@@ -10,6 +10,14 @@ pub const ETH_MINTER_CANISTER_ID: &str = "sv3dd-oaaaa-aaaar-qacoa-cai";
 pub const ETH_LEDGER_CANISTER_ID: &str = "ss2fx-dyaaa-aaaar-qacoq-cai";
 pub const ETH_DECIMALS: u8 = 18;
 
+pub const CKSEPOLIA_ETH_MINTER_CANISTER_ID: &str = "jzenf-aiaaa-aaaar-qaa7q-cai";
+pub const CKSEPOLIA_ETH_LEDGER_CANISTER_ID: &str = "apia6-jaaaa-aaaar-qabma-cai";
+pub const CKSEPOLIA_ETH_DECIMALS: u8 = 18;
+
+pub const CKSEPOLIA_USDC_MINTER_CANISTER_ID: &str = "jzenf-aiaaa-aaaar-qaa7q-cai";
+pub const CKSEPOLIA_USDC_LEDGER_CANISTER_ID: &str = "yfumr-cyaaa-aaaar-qaela-cai";
+pub const CKSEPOLIA_USDC_DECIMALS: u8 = 6;
+
 pub const BTC_MINTER_CANISTER_ID: &str = "mqygn-kiaaa-aaaar-qaadq-cai";
 pub const BTC_LEDGER_CANISTER_ID: &str = "mxzaz-hqaaa-aaaar-qaada-cai";
 pub const BTC_DECIMALS: u8 = 8;

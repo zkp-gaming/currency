@@ -53,6 +53,8 @@ pub enum CKTokenSymbol {
     USDC,
     USDT,
     ETH,
+    SepoliaETH,
+    SepoliaUSDC,
 }
 
 #[derive(Debug, Clone, Serialize, CandidType, Deserialize, PartialEq, Eq, Hash, Copy)]
@@ -70,7 +72,7 @@ impl Currency {
             Currency::ICP => 8,
             Currency::TestICP => 8,
             Currency::CKETHToken(token) => match token {
-                CKTokenSymbol::ETH => 18,
+                CKTokenSymbol::ETH | CKTokenSymbol::SepoliaETH => 18,
                 _ => 6,
             },
             Currency::BTC => 8,
@@ -101,6 +103,8 @@ impl From<u8> for Currency {
             3 => Currency::CKETHToken(CKTokenSymbol::ETH),
             4 => Currency::BTC,
             5 => Currency::TestICP,
+            6 => Currency::CKETHToken(CKTokenSymbol::SepoliaETH),
+            7 => Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC),
             _ => panic!("Invalid currency value"),
         }
     }
@@ -114,10 +118,12 @@ impl From<Currency> for u8 {
                 CKTokenSymbol::USDC => 1,
                 CKTokenSymbol::USDT => 2,
                 CKTokenSymbol::ETH => 3,
+                CKTokenSymbol::SepoliaETH => 6,
+                CKTokenSymbol::SepoliaUSDC => 7,
             },
             Currency::BTC => 4,
             Currency::TestICP => 5,
-            Currency::GenericICRC1(_) => 6,
+            Currency::GenericICRC1(_) => 8,
         }
     }
 }

@@ -80,6 +80,10 @@ pub fn ledger_id_for_currency(env: &TestEnv, currency: Currency) -> Principal {
         Currency::CKETHToken(CKTokenSymbol::USDC) => env.canister_ids.ckusdc_ledger,
         Currency::CKETHToken(CKTokenSymbol::USDT) => env.canister_ids.ckusdt_ledger,
         Currency::CKETHToken(CKTokenSymbol::ETH) => env.canister_ids.cketh_ledger,
+        Currency::CKETHToken(CKTokenSymbol::SepoliaETH) => env.canister_ids.cksepoliaeth_ledger,
+        Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC) => {
+            env.canister_ids.cksepoliausdc_ledger
+        }
         Currency::GenericICRC1(_) => panic!("GenericICRC1 is not covered in these tests"),
     }
 }
@@ -91,6 +95,8 @@ pub fn fee_for_currency(currency: Currency) -> u128 {
         Currency::CKETHToken(CKTokenSymbol::USDC) => 10_000,
         Currency::CKETHToken(CKTokenSymbol::USDT) => 10_000,
         Currency::CKETHToken(CKTokenSymbol::ETH) => 2_000_000_000_000,
+        Currency::CKETHToken(CKTokenSymbol::SepoliaETH) => 10_000_000_000,
+        Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC) => 4_000,
         Currency::GenericICRC1(_) => panic!("GenericICRC1 is not covered in these tests"),
     }
 }

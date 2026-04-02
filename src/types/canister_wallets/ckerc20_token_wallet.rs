@@ -12,6 +12,9 @@ use crate::{
     types::{
         canister_wallet::CanisterWallet,
         constants::{
+            CKSEPOLIA_ETH_DECIMALS, CKSEPOLIA_ETH_LEDGER_CANISTER_ID,
+            CKSEPOLIA_ETH_MINTER_CANISTER_ID, CKSEPOLIA_USDC_DECIMALS,
+            CKSEPOLIA_USDC_LEDGER_CANISTER_ID, CKSEPOLIA_USDC_MINTER_CANISTER_ID,
             ETH_DECIMALS, ETH_LEDGER_CANISTER_ID, ETH_MINTER_CANISTER_ID, USDC_DECIMALS,
             USDC_LEDGER_CANISTER_ID, USDC_MINTER_CANISTER_ID, USDT_DECIMALS,
             USDT_LEDGER_CANISTER_ID, USDT_MINTER_CANISTER_ID,
@@ -63,6 +66,20 @@ impl CKERC20TokenWallet {
                 token_symbol: crate::Currency::CKETHToken(symbol),
                 decimals: ETH_DECIMALS,
                 fee: 2_000_000_000_000,
+            },
+            CKTokenSymbol::SepoliaETH => CKTokenConfig {
+                minter_id: Principal::from_text(CKSEPOLIA_ETH_MINTER_CANISTER_ID).unwrap(),
+                ledger_id: Principal::from_text(CKSEPOLIA_ETH_LEDGER_CANISTER_ID).unwrap(),
+                token_symbol: crate::Currency::CKETHToken(symbol),
+                decimals: CKSEPOLIA_ETH_DECIMALS,
+                fee: 10_000_000_000,
+            },
+            CKTokenSymbol::SepoliaUSDC => CKTokenConfig {
+                minter_id: Principal::from_text(CKSEPOLIA_USDC_MINTER_CANISTER_ID).unwrap(),
+                ledger_id: Principal::from_text(CKSEPOLIA_USDC_LEDGER_CANISTER_ID).unwrap(),
+                token_symbol: crate::Currency::CKETHToken(symbol),
+                decimals: CKSEPOLIA_USDC_DECIMALS,
+                fee: 4_000,
             },
         };
         Self { config }
