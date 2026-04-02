@@ -16,11 +16,17 @@ pub async fn get_one_block(
             length: candid::Nat::from(1u64),
         };
 
-        let result: Result<(GetTransactionsResponse,), _> =
-            ic_cdk::call(ledger, "get_transactions", (args,)).await;
+        let result = ic_cdk::call::Call::unbounded_wait(ledger, "get_transactions")
+            .with_arg(args)
+            .await;
 
         match result {
-            Ok((response,)) => return Ok(response.transactions.into_iter().next()),
+            Ok(response) => {
+                let (response,): (GetTransactionsResponse,) = response
+                    .candid_tuple()
+                    .map_err(|e| CurrencyError::QueryError(format!("{:?}", e)))?;
+                return Ok(response.transactions.into_iter().next());
+            }
             Err(e) => {
                 if i == 2 {
                     // Last attempt
@@ -96,8 +102,12 @@ pub async fn get_balance(
     owner: &Principal,
     subaccount: Option<Vec<u8>>,
 ) -> Result<u128, CurrencyError> {
-    let (res,): (u128,) = ic_cdk::call(*ledger, "icrc1_balance_of", (owner, subaccount))
+    let response = ic_cdk::call::Call::unbounded_wait(*ledger, "icrc1_balance_of")
+        .with_arg((owner, subaccount))
         .await
+        .map_err(|e| CurrencyError::LedgerError(format!("{:?}", e)))?;
+    let (res,): (u128,) = response
+        .candid_tuple()
         .map_err(|e| CurrencyError::LedgerError(format!("{:?}", e)))?;
     Ok(res)
 }

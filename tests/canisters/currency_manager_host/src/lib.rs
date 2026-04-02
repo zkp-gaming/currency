@@ -87,7 +87,7 @@ async fn withdraw(
 async fn get_balance(currency: Currency) -> Result<u128, CurrencyError> {
     manager_for_currency(&currency)
         .await?
-        .get_balance(&currency, ic_cdk::api::id())
+        .get_balance(&currency, ic_cdk::api::canister_self())
         .await
 }
 
@@ -120,7 +120,7 @@ async fn approve_allowance(
 
 #[query]
 fn get_canister_principal() -> Principal {
-    ic_cdk::api::id()
+    ic_cdk::api::canister_self()
 }
 
 #[query]

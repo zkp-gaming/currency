@@ -121,26 +121,34 @@ pub async fn transfer_icrc1(
     };
 
     // Call the icrc1_transfer method
-    let transfer_result: Result<(Result<u128, TransferErrorIcrc1>,), _> =
-        ic_cdk::call(ledger_canister_id, "icrc1_transfer", (transfer_args,)).await;
+    let transfer_result = ic_cdk::call::Call::unbounded_wait(ledger_canister_id, "icrc1_transfer")
+        .with_arg(transfer_args)
+        .await;
 
     ic_cdk::println!("Transfer result: {:?}", transfer_result);
 
     match transfer_result {
-        Ok((Ok(block_index),)) => {
+        Ok(response) => {
+            let (transfer_result,): (Result<u128, TransferErrorIcrc1>,) = response
+                .candid_tuple()
+                .map_err(|e| CurrencyError::LedgerError(format!("{:?}", e)))?;
+            match transfer_result {
+                Ok(block_index) => {
             ic_cdk::println!(
                 "Transfer successful with block index {}",
                 block_index
             );
             Ok(block_index)
+                }
+                Err(e) => Err(CurrencyError::LedgerError(format!(
+                    "Ledger transfer error: {:?}",
+                    e
+                ))),
+            }
         }
-        Ok((Err(e),)) => Err(CurrencyError::LedgerError(format!(
-            "Ledger transfer error: {:?}",
+        Err(e) => Err(CurrencyError::LedgerError(format!(
+            "Failed to call ledger: {:?}",
             e
-        ))),
-        Err((rejection_code, message)) => Err(CurrencyError::LedgerError(format!(
-            "Failed to call ledger: {:?} {}",
-            rejection_code, message
         ))),
     }
 }

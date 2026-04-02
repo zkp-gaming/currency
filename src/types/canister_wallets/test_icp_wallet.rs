@@ -26,15 +26,21 @@ impl TestICPCanisterWallet {
                 subaccount: None,
             },
             spender: Account {
-                owner: ic_cdk::api::id(),
+                owner: ic_cdk::api::canister_self(),
                 subaccount: None,
             },
         };
 
-        let (allowance,): (Allowance,) =
-            ic_cdk::call(Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_allowance", (args,))
-                .await
-                .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(
+            Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(),
+            "icrc2_allowance",
+        )
+        .with_arg(args)
+        .await
+        .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
+        let (allowance,): (Allowance,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
 
         Ok(allowance)
     }
@@ -48,7 +54,7 @@ impl TestICPCanisterWallet {
         created_at_time: Option<u64>,
     ) -> Result<u128, CurrencyError> {
         let canister_account = Account {
-            owner: ic_cdk::api::id(),
+            owner: ic_cdk::api::canister_self(),
             subaccount: None,
         };
 
@@ -67,10 +73,16 @@ impl TestICPCanisterWallet {
             created_at_time,
         };
 
-        let (result,): (Result<u128, TransferFromError>,) =
-            ic_cdk::call(Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_transfer_from", (args,))
-                .await
-                .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(
+            Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(),
+            "icrc2_transfer_from",
+        )
+        .with_arg(args)
+        .await
+        .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
+        let (result,): (Result<u128, TransferFromError>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
 
         match result {
             Ok(block_index) => Ok(block_index),
@@ -107,10 +119,16 @@ impl TestICPCanisterWallet {
             created_at_time,
         };
 
-        let (result,): (Result<u128, ApproveError>,) =
-            ic_cdk::call(Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(), "icrc2_approve", (approve_args,))
-                .await
-                .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(
+            Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(),
+            "icrc2_approve",
+        )
+        .with_arg(approve_args)
+        .await
+        .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+        let (result,): (Result<u128, ApproveError>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
 
         match result {
             Ok(_) => Ok(()),
@@ -222,13 +240,16 @@ impl CanisterWallet for TestICPCanisterWallet {
             subaccount: Some(default_subaccount.0.to_vec()),
         };
         
-        let (balance,): (candid::Nat,) = ic_cdk::call(
+        let response = ic_cdk::call::Call::unbounded_wait(
             Principal::from_text(TEST_ICP_LEDGER_CANISTER_ID).unwrap(),
-            "icrc1_balance_of", 
-            (account,)
+            "icrc1_balance_of",
         )
+        .with_arg(account)
         .await
         .map_err(|e| CurrencyError::LedgerError(format!("Failed to query ICP balance: {:?}", e)))?;
+        let (balance,): (candid::Nat,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::LedgerError(format!("Failed to decode ICP balance: {:?}", e)))?;
         
         // Convert candid::Nat to u64, ensuring it doesn't overflow
         let balance_str = balance.0.to_string();

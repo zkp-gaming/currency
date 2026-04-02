@@ -19,7 +19,7 @@ use super::canister_wallets::{btc_token_wallet::CKBTCTokenWallet, icrc1_token_wa
 const MAX_VALUE_SIZE_CURRENCY_MANAGER: u32 = 100000; // Adjust based on your needs
 
 impl Storable for CurrencyManager {
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+    fn to_bytes(&self) -> std::borrow::Cow<'_, [u8]> {
         Cow::Owned(Encode!(self).unwrap_or_else(|e| {
             ic_cdk::println!("CurrencyManager serialization error: {:?}", e);
             vec![]

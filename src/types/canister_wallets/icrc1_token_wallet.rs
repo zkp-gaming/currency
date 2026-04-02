@@ -49,29 +49,44 @@ impl GenericICRC1TokenWallet {
     /// Query token metadata from the ledger canister
     pub async fn query_token_metadata(ledger_id: Principal) -> Result<ICRC1TokenMetadata, CurrencyError> {
         // Query name
-        let (name,): (String,) = ic_cdk::call(ledger_id, "icrc1_name", ())
+        let response = ic_cdk::call::Call::unbounded_wait(ledger_id, "icrc1_name")
             .await
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to query token name: {:?}", e)))?;
+        let (name,): (String,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to decode token name: {:?}", e)))?;
         
         // Query symbol
-        let (symbol,): (String,) = ic_cdk::call(ledger_id, "icrc1_symbol", ())
+        let response = ic_cdk::call::Call::unbounded_wait(ledger_id, "icrc1_symbol")
             .await
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to query token symbol: {:?}", e)))?;
+        let (symbol,): (String,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to decode token symbol: {:?}", e)))?;
         
         // Query decimals
-        let (decimals,): (u8,) = ic_cdk::call(ledger_id, "icrc1_decimals", ())
+        let response = ic_cdk::call::Call::unbounded_wait(ledger_id, "icrc1_decimals")
             .await
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to query token decimals: {:?}", e)))?;
+        let (decimals,): (u8,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to decode token decimals: {:?}", e)))?;
         
         // Query fee
-        let (fee,): (candid::Nat,) = ic_cdk::call(ledger_id, "icrc1_fee", ())
+        let response = ic_cdk::call::Call::unbounded_wait(ledger_id, "icrc1_fee")
             .await
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to query token fee: {:?}", e)))?;
+        let (fee,): (candid::Nat,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to decode token fee: {:?}", e)))?;
         
         // Query supported standards
-        let (standards,): (Vec<StandardRecord>,) = ic_cdk::call(ledger_id, "icrc1_supported_standards", ())
+        let response = ic_cdk::call::Call::unbounded_wait(ledger_id, "icrc1_supported_standards")
             .await
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to query supported standards: {:?}", e)))?;
+        let (standards,): (Vec<StandardRecord>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("Failed to decode supported standards: {:?}", e)))?;
         
         Ok(ICRC1TokenMetadata {
             name,
@@ -104,15 +119,18 @@ impl GenericICRC1TokenWallet {
                 subaccount: None,
             },
             spender: Account {
-                owner: ic_cdk::api::id(),
+                owner: ic_cdk::api::canister_self(),
                 subaccount: None,
             },
         };
 
-        let (allowance,): (Allowance,) =
-            ic_cdk::call(self.ledger_id, "icrc2_allowance", (args,))
-                .await
-                .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.ledger_id, "icrc2_allowance")
+            .with_arg(args)
+            .await
+            .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
+        let (allowance,): (Allowance,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
 
         Ok(allowance)
     }
@@ -132,7 +150,7 @@ impl GenericICRC1TokenWallet {
         }
         
         let canister_account = Account {
-            owner: ic_cdk::api::id(),
+            owner: ic_cdk::api::canister_self(),
             subaccount: None,
         };
 
@@ -151,10 +169,13 @@ impl GenericICRC1TokenWallet {
             created_at_time,
         };
 
-        let (result,): (Result<u128, TransferFromError>,) =
-            ic_cdk::call(self.ledger_id, "icrc2_transfer_from", (args,))
-                .await
-                .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.ledger_id, "icrc2_transfer_from")
+            .with_arg(args)
+            .await
+            .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
+        let (result,): (Result<u128, TransferFromError>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
 
         match result {
             Ok(block_index) => Ok(block_index),
@@ -197,10 +218,13 @@ impl GenericICRC1TokenWallet {
             created_at_time,
         };
 
-        let (result,): (Result<u128, ApproveError>,) =
-            ic_cdk::call(self.ledger_id, "icrc2_approve", (approve_args,))
-                .await
-                .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.ledger_id, "icrc2_approve")
+            .with_arg(approve_args)
+            .await
+            .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+        let (result,): (Result<u128, ApproveError>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
 
         match result {
             Ok(_) => Ok(()),
@@ -326,15 +350,20 @@ impl CanisterWallet for GenericICRC1TokenWallet {
             subaccount: Some(default_subaccount),
         };
         
-        let (balance,): (candid::Nat,) = ic_cdk::call(
+        let response = ic_cdk::call::Call::unbounded_wait(
             self.ledger_id,
-            "icrc1_balance_of", 
-            (account,)
+            "icrc1_balance_of",
         )
+        .with_arg(account)
         .await
         .map_err(|e| CurrencyError::LedgerError(
             format!("Failed to query {} balance: {:?}", self.metadata.symbol, e)
         ))?;
+        let (balance,): (candid::Nat,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::LedgerError(
+                format!("Failed to decode {} balance: {:?}", self.metadata.symbol, e)
+            ))?;
         
         // Convert candid::Nat to u128
         let balance_str = balance.0.to_string();

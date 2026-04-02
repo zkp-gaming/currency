@@ -67,7 +67,7 @@ impl TransactionState {
 
 impl Storable for TransactionState {
     /// Serializes the struct into a byte array.
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+    fn to_bytes(&self) -> std::borrow::Cow<'_, [u8]> {
         match Encode!(self) {
             Ok(bytes) => Cow::Owned(bytes),
             Err(e) => {

@@ -106,7 +106,7 @@ impl ICRC1TokenRegistry {
 }
 
 impl Storable for ICRC1TokenRegistry {
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         Cow::Owned(Encode!(self).unwrap_or_else(|e| {
             ic_cdk::println!("TokenRegistry serialization error: {:?}", e);
             vec![]

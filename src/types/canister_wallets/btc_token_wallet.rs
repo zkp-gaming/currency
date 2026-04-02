@@ -49,12 +49,19 @@ impl CKBTCTokenWallet {
     /// Gets the Bitcoin deposit address for this canister
     pub async fn get_deposit_address(&self) -> Result<String, CurrencyError> {
         let arg = GetBtcAddressArg {
-            owner: Some(ic_cdk::api::id()),
+            owner: Some(ic_cdk::api::canister_self()),
             subaccount: None,
         };
 
-        let (address,): (String,) = ic_cdk::call(self.config.minter_id, "get_btc_address", (arg,))
+        let response = ic_cdk::call::Call::unbounded_wait(
+            self.config.minter_id,
+            "get_btc_address",
+        )
+        .with_arg(arg)
             .await
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        let (address,): (String,) = response
+            .candid_tuple()
             .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
 
         Ok(address)
@@ -71,15 +78,18 @@ impl CKBTCTokenWallet {
                 subaccount: None,
             },
             spender: Account {
-                owner: ic_cdk::api::id(),
+                owner: ic_cdk::api::canister_self(),
                 subaccount: None,
             },
         };
 
-        let (allowance,): (Allowance,) =
-            ic_cdk::call(self.config.ledger_id, "icrc2_allowance", (args,))
-                .await
-                .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.config.ledger_id, "icrc2_allowance")
+            .with_arg(args)
+            .await
+            .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
+        let (allowance,): (Allowance,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::AllowanceCheckFailed(format!("{:?}", e)))?;
 
         Ok(allowance)
     }
@@ -93,7 +103,7 @@ impl CKBTCTokenWallet {
         created_at_time: Option<u64>,
     ) -> Result<u128, CurrencyError> {
         let canister_account = Account {
-            owner: ic_cdk::api::id(),
+            owner: ic_cdk::api::canister_self(),
             subaccount: None,
         };
 
@@ -112,10 +122,13 @@ impl CKBTCTokenWallet {
             created_at_time,
         };
 
-        let (result,): (Result<u128, TransferFromError>,) =
-            ic_cdk::call(self.config.ledger_id, "icrc2_transfer_from", (args,))
-                .await
-                .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.config.ledger_id, "icrc2_transfer_from")
+            .with_arg(args)
+            .await
+            .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
+        let (result,): (Result<u128, TransferFromError>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::TransferFromFailed(format!("{:?}", e)))?;
 
         match result {
             Ok(block_index) => Ok(block_index),
@@ -183,14 +196,17 @@ impl CKBTCTokenWallet {
     /// Updates the balance by checking for new UTXOs
     async fn update_balance(&self) -> Result<Vec<UtxoStatus>, CurrencyError> {
         let args = UpdateBalanceArg {
-            owner: Some(ic_cdk::api::id()),
+            owner: Some(ic_cdk::api::canister_self()),
             subaccount: None,
         };
 
-        let (result,): (UpdateBalanceRet,) =
-            ic_cdk::call(self.config.minter_id, "update_balance", (args,))
-                .await
-                .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.config.minter_id, "update_balance")
+            .with_arg(args)
+            .await
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        let (result,): (UpdateBalanceRet,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
 
         match result {
             UpdateBalanceRet::Ok(statuses) => Ok(statuses),
@@ -243,10 +259,13 @@ impl CKBTCTokenWallet {
             created_at_time,
         };
 
-        let (result,): (Result<u128, ApproveError>,) =
-            ic_cdk::call(self.config.ledger_id, "icrc2_approve", (approve_args,))
-                .await
-                .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+        let response = ic_cdk::call::Call::unbounded_wait(self.config.ledger_id, "icrc2_approve")
+            .with_arg(approve_args)
+            .await
+            .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
+        let (result,): (Result<u128, ApproveError>,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::ApproveFailed(format!("{:?}", e)))?;
 
         match result {
             Ok(_) => Ok(()),
@@ -358,15 +377,20 @@ impl CanisterWallet for CKBTCTokenWallet {
             subaccount: Some(default_subaccount.to_vec().into()),
         };
         
-        let (balance,): (candid::Nat,) = ic_cdk::call(
+        let response = ic_cdk::call::Call::unbounded_wait(
             self.config.ledger_id,
-            "icrc1_balance_of", 
-            (account,)
+            "icrc1_balance_of",
         )
+        .with_arg(account)
         .await
         .map_err(|e| CurrencyError::LedgerError(
             format!("Failed to query ckBTC balance: {:?}", e)
         ))?;
+        let (balance,): (candid::Nat,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::LedgerError(
+                format!("Failed to decode ckBTC balance: {:?}", e)
+            ))?;
         
         // Convert the candid::Nat to u128
         let balance_str = balance.0.to_string();
