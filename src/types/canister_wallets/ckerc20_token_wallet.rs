@@ -462,23 +462,6 @@ impl CanisterWallet for CKERC20TokenWallet {
     ) -> Result<(), CurrencyError> {
         let canister_state = get_canister_state();
 
-        // Check allowance
-        let from_account = Account {
-            owner: from_principal,
-            subaccount: subaccount.clone(),
-        };
-        let spender_account = Account {
-            owner: canister_state.owner,
-            subaccount: None,
-        };
-
-        let allowance =
-            self.check_allowance(self.config.ledger_id, from_account, spender_account).await?;
-
-        if allowance.allowance < amount as u128 {
-            return Err(CurrencyError::InsufficientAllowance);
-        }
-
         let from_account = Account {
             owner: from_principal,
             subaccount,

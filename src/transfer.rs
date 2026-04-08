@@ -141,10 +141,46 @@ pub async fn transfer_icrc1(
             );
             Ok(block_index)
                 }
-                Err(e) => Err(CurrencyError::LedgerError(format!(
-                    "Ledger transfer error: {:?}",
-                    e
-                ))),
+                Err(e) => match e {
+                    TransferErrorIcrc1::InsufficientFunds { .. } => {
+                        Err(CurrencyError::InsufficientFunds)
+                    }
+                    TransferErrorIcrc1::Duplicate { duplicate_of } => {
+                        Err(CurrencyError::DuplicateTransaction { id: duplicate_of })
+                    }
+                    TransferErrorIcrc1::TemporarilyUnavailable => Err(
+                        CurrencyError::LedgerError(
+                            "Ledger transfer temporarily unavailable".to_string(),
+                        ),
+                    ),
+                    TransferErrorIcrc1::BadFee { expected_fee } => Err(
+                        CurrencyError::LedgerError(format!(
+                            "Ledger transfer bad fee: expected {}",
+                            expected_fee
+                        )),
+                    ),
+                    TransferErrorIcrc1::BadBurn { min_burn_amount } => Err(
+                        CurrencyError::LedgerError(format!(
+                            "Ledger transfer amount below minimum burn amount {}",
+                            min_burn_amount
+                        )),
+                    ),
+                    TransferErrorIcrc1::CreatedInFuture { ledger_time } => Err(
+                        CurrencyError::LedgerError(format!(
+                            "Ledger transfer created in future at {}",
+                            ledger_time
+                        )),
+                    ),
+                    TransferErrorIcrc1::TooOld => Err(
+                        CurrencyError::LedgerError("Ledger transfer is too old".to_string()),
+                    ),
+                    TransferErrorIcrc1::GenericError { error_code, message } => Err(
+                        CurrencyError::LedgerError(format!(
+                            "Ledger transfer generic error {}: {}",
+                            error_code, message
+                        )),
+                    ),
+                },
             }
         }
         Err(e) => Err(CurrencyError::LedgerError(format!(

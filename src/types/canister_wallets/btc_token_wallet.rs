@@ -291,23 +291,6 @@ impl CanisterWallet for CKBTCTokenWallet {
         memo: Option<Vec<u8>>,
         created_at_time: Option<u64>,
     ) -> Result<(), CurrencyError> {
-        // First check the allowance to make sure it's sufficient
-        let allowance = self
-            .check_allowance(from_principal, subaccount.clone())
-            .await?;
-
-        if allowance.allowance < amount as u128 {
-            return Err(CurrencyError::InsufficientAllowance);
-        }
-
-        // Check if the allowance is expired
-        if let Some(expires_at) = allowance.expires_at {
-            if expires_at < ic_cdk::api::time() {
-                return Err(CurrencyError::InsufficientAllowance);
-            }
-        }
-
-        // Transfer the tokens using the allowance
         self
             .transfer_from(from_principal, subaccount, amount, memo, created_at_time)
             .await?;
