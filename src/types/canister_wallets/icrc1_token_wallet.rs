@@ -255,24 +255,7 @@ impl CanisterWallet for GenericICRC1TokenWallet {
                 format!("Token {} does not support ICRC-2 (allowance) operations", self.metadata.symbol)
             ));
         }
-        
-        // Check the allowance to make sure it's sufficient
-        let allowance = self
-            .check_allowance(from_principal, subaccount.clone())
-            .await?;
 
-        if allowance.allowance < amount as u128 {
-            return Err(CurrencyError::InsufficientAllowance);
-        }
-
-        // Check if the allowance is expired
-        if let Some(expires_at) = allowance.expires_at {
-            if expires_at < ic_cdk::api::time() {
-                return Err(CurrencyError::InsufficientAllowance);
-            }
-        }
-
-        // Transfer the tokens using the allowance
         self
             .transfer_from(from_principal, subaccount, amount, memo, created_at_time)
             .await?;
