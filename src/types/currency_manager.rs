@@ -16,7 +16,10 @@ use crate::{
     }
 };
 
-use super::canister_wallets::{btc_token_wallet::CKBTCTokenWallet, icrc1_token_wallet::GenericICRC1TokenWallet};
+use super::{
+    canister_wallets::{btc_token_wallet::CKBTCTokenWallet, icrc1_token_wallet::GenericICRC1TokenWallet},
+    currency::CKTokenSymbol,
+};
 
 const MAX_VALUE_SIZE_CURRENCY_MANAGER: u32 = 100000; // Adjust based on your needs
 
@@ -75,7 +78,10 @@ impl CurrencyManager {
         Self {
             icp: Some(ICPCanisterWallet),
             test_icp: Some(TestICPCanisterWallet),
-            ckerc20_tokens: Vec::new(),
+            ckerc20_tokens: vec![
+                CKERC20TokenWallet::new(CKTokenSymbol::USDC),
+                CKERC20TokenWallet::new(CKTokenSymbol::SepoliaUSDC),
+            ],
             btc: Some(CKBTCTokenWallet::new()),
             generic_icrc1_tokens: Vec::new(),
         }
@@ -562,5 +568,25 @@ impl CurrencyManager {
                     .await
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_includes_default_ckerc20_wallets() {
+        let manager = CurrencyManager::new();
+
+        assert!(manager
+            .ckerc20_tokens
+            .iter()
+            .any(|wallet| wallet.config.token_symbol == Currency::CKETHToken(CKTokenSymbol::USDC)));
+        assert!(manager
+            .ckerc20_tokens
+            .iter()
+            .any(|wallet| wallet.config.token_symbol
+                == Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC)));
     }
 }
