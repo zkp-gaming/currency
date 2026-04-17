@@ -1,8 +1,9 @@
 use crate::{
     cketh_minter_canister_interface::{
-        EventPayload, GetEventsArg, GetEventsRet, LedgerError, MinterInfo, TxFinalizedStatus,
-        WithdrawErc20Arg, WithdrawErc20Error, WithdrawErc20Ret, WithdrawEthRet, WithdrawalArg,
-        WithdrawalDetail, WithdrawalSearchParameter, WithdrawalStatus,
+        Eip1559TransactionPrice, Eip1559TransactionPriceArg, EventPayload, GetEventsArg,
+        GetEventsRet, LedgerError, MinterInfo, TxFinalizedStatus, WithdrawErc20Arg,
+        WithdrawErc20Error, WithdrawErc20Ret, WithdrawEthRet, WithdrawalArg, WithdrawalDetail,
+        WithdrawalSearchParameter, WithdrawalStatus,
     }, currency_error::CurrencyError, icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError}, transfer::transfer_icrc1
 };
 use candid::{CandidType, Principal};
@@ -169,10 +170,31 @@ impl CKERC20TokenWallet {
         Err(CurrencyError::TransactionNotFound)
     }
 
+    async fn get_erc20_withdrawal_fee(&self) -> Result<u128, CurrencyError> {
+        let response = ic_cdk::call::Call::unbounded_wait(
+            self.config.minter_id,
+            "eip1559_transaction_price",
+        )
+        .with_arg(Eip1559TransactionPriceArg {
+            ckerc20_ledger_id: self.config.ledger_id,
+        })
+        .await
+        .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        let (price,): (Eip1559TransactionPrice,) = response
+            .candid_tuple()
+            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        price
+            .max_transaction_fee
+            .0
+            .try_into()
+            .map_err(|_| CurrencyError::QueryError("gas fee too large for u128".to_string()))
+    }
+
     /// Initiates a withdrawal back to an Ethereum address via the ckETH minter.
+    /// Handles the required `icrc2_approve` calls before invoking the minter.
     /// Returns the withdrawal block index, which can be passed to `check_withdrawal_status`.
-    /// - ETH / SepoliaETH: calls `withdraw_eth`
-    /// - USDC / USDT / SepoliaUSDC: calls `withdraw_erc20`
+    /// - ETH / SepoliaETH: approves ckETH ledger, calls `withdraw_eth`
+    /// - USDC / USDT / SepoliaUSDC: approves ckETH (gas) + ckERC20 ledgers, calls `withdraw_erc20`
     pub async fn withdraw_icrc1_token_to_eth_address(
         &self,
         eth_address: String,
@@ -185,6 +207,17 @@ impl CKERC20TokenWallet {
         );
 
         if is_eth {
+            // Approve minter to burn ckETH for the withdrawal amount
+            self.approve(
+                self.config.ledger_id,
+                self.config.minter_id,
+                amount as u128,
+                None,
+                None,
+                None,
+            )
+            .await?;
+
             let withdraw_arg = WithdrawalArg {
                 amount: amount.into(),
                 recipient: eth_address,
@@ -209,6 +242,30 @@ impl CKERC20TokenWallet {
                 WithdrawEthRet::Err(e) => Err(CurrencyError::WithdrawalFailed(format!("{:?}", e))),
             }
         } else {
+            // Determine the ckETH ledger for gas fee approval
+            let cketh_ledger_id = match self.config.token_symbol {
+                crate::Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC) => {
+                    Principal::from_text(CKSEPOLIA_ETH_LEDGER_CANISTER_ID).unwrap()
+                }
+                _ => Principal::from_text(ETH_LEDGER_CANISTER_ID).unwrap(),
+            };
+
+            // Approve minter to burn ckETH for gas fees
+            let gas_fee = self.get_erc20_withdrawal_fee().await?;
+            self.approve(cketh_ledger_id, self.config.minter_id, gas_fee, None, None, None)
+                .await?;
+
+            // Approve minter to burn the ckERC20 tokens
+            self.approve(
+                self.config.ledger_id,
+                self.config.minter_id,
+                amount as u128,
+                None,
+                None,
+                None,
+            )
+            .await?;
+
             let withdraw_arg = WithdrawErc20Arg {
                 amount: amount.into(),
                 ckerc20_ledger_id: self.config.ledger_id,
