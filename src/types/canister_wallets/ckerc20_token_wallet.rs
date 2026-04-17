@@ -1,8 +1,8 @@
 use crate::{
     cketh_minter_canister_interface::{
         EventPayload, GetEventsArg, GetEventsRet, LedgerError, MinterInfo, TxFinalizedStatus,
-        WithdrawErc20Arg, WithdrawErc20Error, WithdrawErc20Ret, WithdrawalDetail,
-        WithdrawalSearchParameter, WithdrawalStatus,
+        WithdrawErc20Arg, WithdrawErc20Error, WithdrawErc20Ret, WithdrawEthRet, WithdrawalArg,
+        WithdrawalDetail, WithdrawalSearchParameter, WithdrawalStatus,
     }, currency_error::CurrencyError, icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferFromArg, TransferFromError}, transfer::transfer_icrc1
 };
 use candid::{CandidType, Principal};
@@ -169,127 +169,166 @@ impl CKERC20TokenWallet {
         Err(CurrencyError::TransactionNotFound)
     }
 
+    /// Initiates a withdrawal back to an Ethereum address via the ckETH minter.
+    /// Returns the withdrawal block index, which can be passed to `check_withdrawal_status`.
+    /// - ETH / SepoliaETH: calls `withdraw_eth`
+    /// - USDC / USDT / SepoliaUSDC: calls `withdraw_erc20`
     pub async fn withdraw_icrc1_token_to_eth_address(
         &self,
         eth_address: String,
         amount: u64,
-    ) -> Result<(), CurrencyError> {
-        // First create withdrawal args for the minter
-        let withdraw_arg = WithdrawErc20Arg {
-            amount: amount.into(),
-            ckerc20_ledger_id: self.config.ledger_id,
-            recipient: eth_address,      // This needs to be an ETH address
-            from_cketh_subaccount: None, // For gas fees
-            from_ckerc20_subaccount: None,
-        };
+    ) -> Result<u64, CurrencyError> {
+        let is_eth = matches!(
+            self.config.token_symbol,
+            crate::Currency::CKETHToken(CKTokenSymbol::ETH)
+                | crate::Currency::CKETHToken(CKTokenSymbol::SepoliaETH)
+        );
 
-        // Call minter to initiate withdrawal
-        let response = ic_cdk::call::Call::unbounded_wait(self.config.minter_id, "withdraw_erc20")
-            .with_arg(withdraw_arg)
-            .await
-            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
-        let (result,): (WithdrawErc20Ret,) = response
-            .candid_tuple()
-            .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+        if is_eth {
+            let withdraw_arg = WithdrawalArg {
+                amount: amount.into(),
+                recipient: eth_address,
+                from_subaccount: None,
+            };
 
-        match result {
-            WithdrawErc20Ret::Ok(_) => Ok(()),
-            WithdrawErc20Ret::Err(e) => {
-                let error_msg = match e {
-                    WithdrawErc20Error::TokenNotSupported { supported_tokens } => {
-                        format!(
-                            "Token not supported. Supported tokens: {:?}",
-                            supported_tokens
-                                .iter()
-                                .map(|t| t.ckerc20_token_symbol.clone())
-                                .collect::<Vec<_>>()
-                        )
-                    }
-                    WithdrawErc20Error::TemporarilyUnavailable(msg) => {
-                        format!("Service temporarily unavailable: {}", msg)
-                    }
-                    WithdrawErc20Error::CkErc20LedgerError {
-                        error,
-                        cketh_block_index: _,
-                    } => match error {
-                        LedgerError::TemporarilyUnavailable(msg) => {
-                            format!("Ledger temporarily unavailable: {}", msg)
-                        }
-                        LedgerError::InsufficientAllowance {
-                            token_symbol,
-                            allowance,
-                            failed_burn_amount,
-                            ..
-                        } => {
+            let response =
+                ic_cdk::call::Call::unbounded_wait(self.config.minter_id, "withdraw_eth")
+                    .with_arg(withdraw_arg)
+                    .await
+                    .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+            let (result,): (WithdrawEthRet,) = response
+                .candid_tuple()
+                .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+
+            match result {
+                WithdrawEthRet::Ok(req) => req
+                    .block_index
+                    .0
+                    .try_into()
+                    .map_err(|_| CurrencyError::QueryError("block index too large for u64".to_string())),
+                WithdrawEthRet::Err(e) => Err(CurrencyError::WithdrawalFailed(format!("{:?}", e))),
+            }
+        } else {
+            let withdraw_arg = WithdrawErc20Arg {
+                amount: amount.into(),
+                ckerc20_ledger_id: self.config.ledger_id,
+                recipient: eth_address,
+                from_cketh_subaccount: None,
+                from_ckerc20_subaccount: None,
+            };
+
+            let response =
+                ic_cdk::call::Call::unbounded_wait(self.config.minter_id, "withdraw_erc20")
+                    .with_arg(withdraw_arg)
+                    .await
+                    .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+            let (result,): (WithdrawErc20Ret,) = response
+                .candid_tuple()
+                .map_err(|e| CurrencyError::CanisterCallFailed(format!("{:?}", e)))?;
+
+            match result {
+                WithdrawErc20Ret::Ok(req) => req
+                    .cketh_block_index
+                    .0
+                    .try_into()
+                    .map_err(|_| CurrencyError::QueryError("cketh block index too large for u64".to_string())),
+                WithdrawErc20Ret::Err(e) => {
+                    let error_msg = match e {
+                        WithdrawErc20Error::TokenNotSupported { supported_tokens } => {
                             format!(
-                                "Insufficient allowance for {}: have {} need {}",
-                                token_symbol, allowance, failed_burn_amount
+                                "Token not supported. Supported tokens: {:?}",
+                                supported_tokens
+                                    .iter()
+                                    .map(|t| t.ckerc20_token_symbol.clone())
+                                    .collect::<Vec<_>>()
                             )
                         }
-                        LedgerError::AmountTooLow {
-                            minimum_burn_amount,
-                            token_symbol,
-                            failed_burn_amount,
-                            ..
-                        } => {
-                            format!(
-                                "Amount too low for {}: minimum {} got {}",
-                                token_symbol, minimum_burn_amount, failed_burn_amount
-                            )
+                        WithdrawErc20Error::TemporarilyUnavailable(msg) => {
+                            format!("Service temporarily unavailable: {}", msg)
                         }
-                        LedgerError::InsufficientFunds {
-                            balance,
-                            token_symbol,
-                            failed_burn_amount,
-                            ..
-                        } => {
-                            format!(
-                                "Insufficient funds for {}: have {} need {}",
-                                token_symbol, balance, failed_burn_amount
-                            )
+                        WithdrawErc20Error::CkErc20LedgerError {
+                            error,
+                            cketh_block_index: _,
+                        } => match error {
+                            LedgerError::TemporarilyUnavailable(msg) => {
+                                format!("Ledger temporarily unavailable: {}", msg)
+                            }
+                            LedgerError::InsufficientAllowance {
+                                token_symbol,
+                                allowance,
+                                failed_burn_amount,
+                                ..
+                            } => {
+                                format!(
+                                    "Insufficient allowance for {}: have {} need {}",
+                                    token_symbol, allowance, failed_burn_amount
+                                )
+                            }
+                            LedgerError::AmountTooLow {
+                                minimum_burn_amount,
+                                token_symbol,
+                                failed_burn_amount,
+                                ..
+                            } => {
+                                format!(
+                                    "Amount too low for {}: minimum {} got {}",
+                                    token_symbol, minimum_burn_amount, failed_burn_amount
+                                )
+                            }
+                            LedgerError::InsufficientFunds {
+                                balance,
+                                token_symbol,
+                                failed_burn_amount,
+                                ..
+                            } => {
+                                format!(
+                                    "Insufficient funds for {}: have {} need {}",
+                                    token_symbol, balance, failed_burn_amount
+                                )
+                            }
+                        },
+                        WithdrawErc20Error::CkEthLedgerError { error } => match error {
+                            LedgerError::TemporarilyUnavailable(msg) => {
+                                format!("ckETH ledger temporarily unavailable: {}", msg)
+                            }
+                            LedgerError::InsufficientAllowance {
+                                token_symbol,
+                                allowance,
+                                failed_burn_amount,
+                                ..
+                            } => {
+                                format!(
+                                    "Insufficient {} allowance: have {} need {}",
+                                    token_symbol, allowance, failed_burn_amount
+                                )
+                            }
+                            LedgerError::AmountTooLow {
+                                minimum_burn_amount,
+                                failed_burn_amount,
+                                ..
+                            } => {
+                                format!(
+                                    "ckETH amount too low: minimum {} got {}",
+                                    minimum_burn_amount, failed_burn_amount
+                                )
+                            }
+                            LedgerError::InsufficientFunds {
+                                balance,
+                                failed_burn_amount,
+                                ..
+                            } => {
+                                format!(
+                                    "Insufficient ckETH funds: have {} need {}",
+                                    balance, failed_burn_amount
+                                )
+                            }
+                        },
+                        WithdrawErc20Error::RecipientAddressBlocked { address } => {
+                            format!("Recipient address blocked: {}", address)
                         }
-                    },
-                    WithdrawErc20Error::CkEthLedgerError { error } => match error {
-                        LedgerError::TemporarilyUnavailable(msg) => {
-                            format!("ckETH ledger temporarily unavailable: {}", msg)
-                        }
-                        LedgerError::InsufficientAllowance {
-                            token_symbol,
-                            allowance,
-                            failed_burn_amount,
-                            ..
-                        } => {
-                            format!(
-                                "Insufficient {} allowance: have {} need {}",
-                                token_symbol, allowance, failed_burn_amount
-                            )
-                        }
-                        LedgerError::AmountTooLow {
-                            minimum_burn_amount,
-                            failed_burn_amount,
-                            ..
-                        } => {
-                            format!(
-                                "ckETH amount too low: minimum {} got {}",
-                                minimum_burn_amount, failed_burn_amount
-                            )
-                        }
-                        LedgerError::InsufficientFunds {
-                            balance,
-                            failed_burn_amount,
-                            ..
-                        } => {
-                            format!(
-                                "Insufficient ckETH funds: have {} need {}",
-                                balance, failed_burn_amount
-                            )
-                        }
-                    },
-                    WithdrawErc20Error::RecipientAddressBlocked { address } => {
-                        format!("Recipient address blocked: {}", address)
-                    }
-                };
-                Err(CurrencyError::WithdrawalFailed(error_msg))
+                    };
+                    Err(CurrencyError::WithdrawalFailed(error_msg))
+                }
             }
         }
     }

@@ -11,7 +11,7 @@ use crate::{
     Currency, currency_error::CurrencyError, state::TransactionState, types::{
         canister_wallet::CanisterWallet,
         canister_wallets::{
-            ckerc20_token_wallet::CKERC20TokenWallet, icp_canister_wallet::ICPCanisterWallet, test_icp_wallet::TestICPCanisterWallet,
+            ckerc20_token_wallet::{CKTokenWithdrawalStatus, CKERC20TokenWallet}, icp_canister_wallet::ICPCanisterWallet, test_icp_wallet::TestICPCanisterWallet,
         },
     }
 };
@@ -567,6 +567,47 @@ impl CurrencyManager {
                     .approve(spender_principal, amount, subaccount, memo, created_at_time)
                     .await
             }
+        }
+    }
+
+    pub async fn withdraw_to_eth_address(
+        &self,
+        currency: &Currency,
+        eth_address: String,
+        amount: u64,
+    ) -> Result<u64, CurrencyError> {
+        match currency {
+            Currency::CKETHToken(token) => {
+                let wallet = self
+                    .ckerc20_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKETHToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet.withdraw_icrc1_token_to_eth_address(eth_address, amount).await
+            }
+            _ => Err(CurrencyError::OperationNotSupported(
+                "withdraw_to_eth_address is only supported for CKETHToken currencies".to_string(),
+            )),
+        }
+    }
+
+    pub async fn check_eth_withdrawal_status(
+        &self,
+        currency: &Currency,
+        withdrawal_id: u64,
+    ) -> Result<CKTokenWithdrawalStatus, CurrencyError> {
+        match currency {
+            Currency::CKETHToken(token) => {
+                let wallet = self
+                    .ckerc20_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKETHToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet.check_withdrawal_status(withdrawal_id).await
+            }
+            _ => Err(CurrencyError::OperationNotSupported(
+                "check_eth_withdrawal_status is only supported for CKETHToken currencies".to_string(),
+            )),
         }
     }
 }
