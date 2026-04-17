@@ -454,7 +454,7 @@ pub struct RetrieveEthRequest {
     pub block_index: candid::Nat,
 }
 
-#[derive(CandidType, Deserialize)]
+#[derive(CandidType, Deserialize, Debug)]
 pub enum WithdrawalError {
     TemporarilyUnavailable(String),
     InsufficientAllowance { allowance: candid::Nat },
