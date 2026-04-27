@@ -8,10 +8,16 @@ use ic_stable_structures::{storable::Bound, Storable};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    cksol_minter_canister_interface::{
+        CKSOLMinterInfo, CKSOLWithdrawalStatus, ProcessDepositSuccess, WithdrawToSolSuccess,
+    },
     Currency, currency_error::CurrencyError, state::TransactionState, types::{
         canister_wallet::CanisterWallet,
         canister_wallets::{
-            ckerc20_token_wallet::{CKTokenWithdrawalStatus, CKERC20TokenWallet}, icp_canister_wallet::ICPCanisterWallet, test_icp_wallet::TestICPCanisterWallet,
+            ckerc20_token_wallet::{CKTokenWithdrawalStatus, CKERC20TokenWallet},
+            cksol_token_wallet::CKSOLTokenWallet,
+            icp_canister_wallet::ICPCanisterWallet,
+            test_icp_wallet::TestICPCanisterWallet,
         },
     }
 };
@@ -39,6 +45,7 @@ impl Storable for CurrencyManager {
                 icp: None,
                 test_icp: None,
                 ckerc20_tokens: vec![],
+                cksol_tokens: vec![],
                 btc: None,
                 generic_icrc1_tokens: vec![],
             }
@@ -63,6 +70,7 @@ pub struct CurrencyManager {
     pub icp: Option<ICPCanisterWallet>,
     pub test_icp: Option<TestICPCanisterWallet>,
     pub ckerc20_tokens: Vec<CKERC20TokenWallet>,
+    pub cksol_tokens: Vec<CKSOLTokenWallet>,
     pub btc: Option<CKBTCTokenWallet>,
     pub generic_icrc1_tokens: Vec<GenericICRC1TokenWallet>,
 }
@@ -82,6 +90,7 @@ impl CurrencyManager {
                 CKERC20TokenWallet::new(CKTokenSymbol::USDC),
                 CKERC20TokenWallet::new(CKTokenSymbol::SepoliaUSDC),
             ],
+            cksol_tokens: Vec::new(),
             btc: Some(CKBTCTokenWallet::new()),
             generic_icrc1_tokens: Vec::new(),
         }
@@ -154,6 +163,15 @@ impl CurrencyManager {
                     self.ckerc20_tokens.push(CKERC20TokenWallet::new(token));
                 }
             }
+            Currency::CKSOLToken(token) => {
+                if !self
+                    .cksol_tokens
+                    .iter()
+                    .any(|w: &CKSOLTokenWallet| w.config.token_symbol == Currency::CKSOLToken(token))
+                {
+                    self.cksol_tokens.push(CKSOLTokenWallet::new(token).await?);
+                }
+            }
             Currency::BTC => {
                 if self.btc.is_none() {
                     self.btc = Some(CKBTCTokenWallet::new());
@@ -184,6 +202,10 @@ impl CurrencyManager {
             Currency::CKETHToken(token) => {
                 self.ckerc20_tokens
                     .retain(|w| w.config.token_symbol != Currency::CKETHToken(*token));
+            }
+            Currency::CKSOLToken(token) => {
+                self.cksol_tokens
+                    .retain(|w| w.config.token_symbol != Currency::CKSOLToken(*token));
             }
             Currency::BTC => {
                 self.btc = None;
@@ -246,6 +268,22 @@ impl CurrencyManager {
                     .ckerc20_tokens
                     .iter()
                     .find(|w| w.config.token_symbol == Currency::CKETHToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet
+                    .deposit(
+                        from_principal,
+                        subaccount.clone(),
+                        amount,
+                        memo,
+                        created_at_time,
+                    )
+                    .await
+            }
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
                     .ok_or(CurrencyError::WalletNotSet)?;
                 wallet
                     .deposit(
@@ -338,6 +376,22 @@ impl CurrencyManager {
                     )
                     .await
             }
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet
+                    .validate_allowance(
+                        from_principal,
+                        subaccount,
+                        amount,
+                        memo,
+                        created_at_time,
+                    )
+                    .await
+            }
             Currency::BTC => match &self.btc {
                 Some(wallet) => {
                     wallet
@@ -413,6 +467,16 @@ impl CurrencyManager {
                     .withdraw(wallet_principal_id, subaccount, amount, memo, created_at_time)
                     .await
             }
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet
+                    .withdraw(wallet_principal_id, subaccount, amount, memo, created_at_time)
+                    .await
+            }
             Currency::BTC => match &self.btc {
                 Some(wallet) => {
                     wallet
@@ -458,6 +522,14 @@ impl CurrencyManager {
                     .ok_or(CurrencyError::WalletNotSet)?;
                 wallet.get_balance(principal_id).await
             }
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet.get_balance(principal_id).await
+            }
             Currency::BTC => match &self.btc {
                 Some(wallet) => wallet.get_balance(principal_id).await,
                 None => Err(CurrencyError::WalletNotSet),
@@ -488,6 +560,14 @@ impl CurrencyManager {
                     .ckerc20_tokens
                     .iter()
                     .find(|w| w.config.token_symbol == Currency::CKETHToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                Ok(wallet.config.fee)
+            }
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
                     .ok_or(CurrencyError::WalletNotSet)?;
                 Ok(wallet.config.fee)
             }
@@ -549,6 +629,16 @@ impl CurrencyManager {
                     )
                     .await
             }
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet
+                    .approve(spender_principal, amount, subaccount, memo, created_at_time)
+                    .await
+            }
             Currency::BTC => match &self.btc {
                 Some(wallet) => {
                     wallet
@@ -591,6 +681,95 @@ impl CurrencyManager {
         }
     }
 
+    pub async fn get_cksol_minter_info(
+        &self,
+        currency: &Currency,
+    ) -> Result<CKSOLMinterInfo, CurrencyError> {
+        match currency {
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet.get_minter_info().await
+            }
+            _ => Err(CurrencyError::OperationNotSupported(
+                "get_cksol_minter_info is only supported for CKSOLToken currencies".to_string(),
+            )),
+        }
+    }
+
+    pub async fn get_cksol_deposit_address(
+        &self,
+        currency: &Currency,
+        owner: Principal,
+        subaccount: Option<Vec<u8>>,
+    ) -> Result<String, CurrencyError> {
+        match currency {
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet.get_deposit_address(owner, subaccount).await
+            }
+            _ => Err(CurrencyError::OperationNotSupported(
+                "get_cksol_deposit_address is only supported for CKSOLToken currencies".to_string(),
+            )),
+        }
+    }
+
+    pub async fn process_cksol_deposit(
+        &self,
+        currency: &Currency,
+        owner: Principal,
+        subaccount: Option<Vec<u8>>,
+        signature: String,
+        cycles: u128,
+    ) -> Result<ProcessDepositSuccess, CurrencyError> {
+        match currency {
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet
+                    .process_deposit(owner, subaccount, signature, cycles)
+                    .await
+            }
+            _ => Err(CurrencyError::OperationNotSupported(
+                "process_cksol_deposit is only supported for CKSOLToken currencies".to_string(),
+            )),
+        }
+    }
+
+    pub async fn withdraw_to_sol_address(
+        &self,
+        currency: &Currency,
+        address: String,
+        amount: u64,
+        from_subaccount: Option<Vec<u8>>,
+    ) -> Result<WithdrawToSolSuccess, CurrencyError> {
+        match currency {
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet
+                    .withdraw_to_sol_address(address, amount, from_subaccount)
+                    .await
+            }
+            _ => Err(CurrencyError::OperationNotSupported(
+                "withdraw_to_sol_address is only supported for CKSOLToken currencies".to_string(),
+            )),
+        }
+    }
+
     pub async fn check_eth_withdrawal_status(
         &self,
         currency: &Currency,
@@ -607,6 +786,26 @@ impl CurrencyManager {
             }
             _ => Err(CurrencyError::OperationNotSupported(
                 "check_eth_withdrawal_status is only supported for CKETHToken currencies".to_string(),
+            )),
+        }
+    }
+
+    pub async fn check_sol_withdrawal_status(
+        &self,
+        currency: &Currency,
+        block_index: u64,
+    ) -> Result<CKSOLWithdrawalStatus, CurrencyError> {
+        match currency {
+            Currency::CKSOLToken(token) => {
+                let wallet = self
+                    .cksol_tokens
+                    .iter()
+                    .find(|w| w.config.token_symbol == Currency::CKSOLToken(*token))
+                    .ok_or(CurrencyError::WalletNotSet)?;
+                wallet.check_withdrawal_status(block_index).await
+            }
+            _ => Err(CurrencyError::OperationNotSupported(
+                "check_sol_withdrawal_status is only supported for CKSOLToken currencies".to_string(),
             )),
         }
     }
@@ -629,5 +828,6 @@ mod tests {
             .iter()
             .any(|wallet| wallet.config.token_symbol
                 == Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC)));
+        assert!(manager.cksol_tokens.is_empty());
     }
 }
