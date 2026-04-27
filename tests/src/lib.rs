@@ -3,6 +3,8 @@
 mod currency_manager_btc_tests;
 mod currency_manager_argument_tests;
 mod currency_manager_cketh_tests;
+mod currency_manager_cksol_minter_tests;
+mod currency_manager_cksol_tests;
 mod currency_manager_cksepoliaeth_tests;
 mod currency_manager_cksepoliausdc_tests;
 mod currency_manager_ckusdc_tests;
@@ -17,11 +19,16 @@ mod wasms;
 
 use candid::{encode_one, CandidType, Nat, Principal};
 use currency::{
+    cksol_minter_canister_interface::CKSOLMinterInfo,
     ckusdc_canister_interface::{
         Account as IcrcAccount, ArchiveOptions, FeatureFlags, InitArgs as IcrcLedgerInitArgs,
         LedgerArgument,
     },
-    types::constants::{BTC_LEDGER_CANISTER_ID, ETH_LEDGER_CANISTER_ID, USDC_LEDGER_CANISTER_ID, USDT_LEDGER_CANISTER_ID},
+    types::constants::{
+        BTC_LEDGER_CANISTER_ID, CKDEVNETSOL_LEDGER_CANISTER_ID, CKDEVNETSOL_MINTER_CANISTER_ID,
+        CKSOL_LEDGER_CANISTER_ID, CKSOL_MINTER_CANISTER_ID, ETH_LEDGER_CANISTER_ID,
+        USDC_LEDGER_CANISTER_ID, USDT_LEDGER_CANISTER_ID,
+    },
 };
 use ic_ledger_types::{AccountIdentifier, Tokens, DEFAULT_SUBACCOUNT};
 use pocket_ic::{PocketIc, PocketIcBuilder};
@@ -36,6 +43,7 @@ pub const TEST_ICP_LEDGER_CANISTER_ID: &str = "xafvr-biaaa-aaaai-aql5q-cai";
 pub const CKSEPOLIA_ETH_LEDGER_CANISTER_ID: &str = "apia6-jaaaa-aaaar-qabma-cai";
 pub const CKSEPOLIA_USDC_LEDGER_CANISTER_ID: &str = "yfumr-cyaaa-aaaar-qaela-cai";
 pub const TREASURY_PRINCIPAL_SEED: &[u8] = b"currency-e2e-treasury";
+pub const PROCESS_DEPOSIT_REQUIRED_CYCLES: u128 = 123_456_789;
 
 pub struct TestEnv {
     pub pocket_ic: PocketIc,
@@ -51,6 +59,10 @@ pub struct CanisterIds {
     pub cketh_ledger: Principal,
     pub ckusdc_ledger: Principal,
     pub ckusdt_ledger: Principal,
+    pub ckdevnetsol_minter: Principal,
+    pub ckdevnetsol_ledger: Principal,
+    pub cksol_minter: Principal,
+    pub cksol_ledger: Principal,
     pub cksepoliaeth_ledger: Principal,
     pub cksepoliausdc_ledger: Principal,
     pub currency_manager_host: Principal,
@@ -149,6 +161,50 @@ impl TestEnv {
             wasms::ICRC1_LEDGER.clone(),
         );
 
+        let ckdevnetsol_ledger = install_canister_with_id(
+            &pocket_ic,
+            CKDEVNETSOL_LEDGER_CANISTER_ID,
+            icrc1_ledger_init_args(
+                "ckDevnetSOL",
+                "Chain key Devnet Solana",
+                9,
+                10_000,
+                minting_principal,
+            ),
+            wasms::ICRC1_LEDGER.clone(),
+        );
+
+        let cksol_ledger = install_canister_with_id(
+            &pocket_ic,
+            CKSOL_LEDGER_CANISTER_ID,
+            icrc1_ledger_init_args(
+                "ckSOL",
+                "Chain key Solana",
+                9,
+                10_000,
+                minting_principal,
+            ),
+            wasms::ICRC1_LEDGER.clone(),
+        );
+
+        let ckdevnetsol_minter = install_canister_with_id(
+            &pocket_ic,
+            CKDEVNETSOL_MINTER_CANISTER_ID,
+            CKSOLMinterInfo {
+                process_deposit_required_cycles: PROCESS_DEPOSIT_REQUIRED_CYCLES,
+            },
+            wasms::CKSOL_MINTER_MOCK.clone(),
+        );
+
+        let cksol_minter = install_canister_with_id(
+            &pocket_ic,
+            CKSOL_MINTER_CANISTER_ID,
+            CKSOLMinterInfo {
+                process_deposit_required_cycles: PROCESS_DEPOSIT_REQUIRED_CYCLES,
+            },
+            wasms::CKSOL_MINTER_MOCK.clone(),
+        );
+
         let cksepoliaeth_ledger = install_canister_with_id(
             &pocket_ic,
             CKSEPOLIA_ETH_LEDGER_CANISTER_ID,
@@ -188,6 +244,10 @@ impl TestEnv {
                 cketh_ledger,
                 ckusdc_ledger,
                 ckusdt_ledger,
+                ckdevnetsol_minter,
+                ckdevnetsol_ledger,
+                cksol_minter,
+                cksol_ledger,
                 cksepoliaeth_ledger,
                 cksepoliausdc_ledger,
                 currency_manager_host,

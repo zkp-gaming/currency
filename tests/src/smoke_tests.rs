@@ -31,6 +31,22 @@ fn boots_expected_canisters_at_fixed_ids() {
         Principal::from_text(currency::types::constants::USDT_LEDGER_CANISTER_ID).unwrap()
     );
     assert_eq!(
+        env.canister_ids.ckdevnetsol_minter,
+        Principal::from_text(currency::types::constants::CKDEVNETSOL_MINTER_CANISTER_ID).unwrap()
+    );
+    assert_eq!(
+        env.canister_ids.ckdevnetsol_ledger,
+        Principal::from_text(currency::types::constants::CKDEVNETSOL_LEDGER_CANISTER_ID).unwrap()
+    );
+    assert_eq!(
+        env.canister_ids.cksol_minter,
+        Principal::from_text(currency::types::constants::CKSOL_MINTER_CANISTER_ID).unwrap()
+    );
+    assert_eq!(
+        env.canister_ids.cksol_ledger,
+        Principal::from_text(currency::types::constants::CKSOL_LEDGER_CANISTER_ID).unwrap()
+    );
+    assert_eq!(
         env.canister_ids.cksepoliaeth_ledger,
         Principal::from_text(crate::CKSEPOLIA_ETH_LEDGER_CANISTER_ID).unwrap()
     );
@@ -75,6 +91,22 @@ fn installed_canisters_respond_to_lightweight_reads() {
         encode_one(()).unwrap(),
     );
     assert_eq!(ckusdt_symbol, "ckUSDT");
+
+    let ckdevnetsol_symbol: String = decode_query(
+        &env,
+        env.canister_ids.ckdevnetsol_ledger,
+        "icrc1_symbol",
+        encode_one(()).unwrap(),
+    );
+    assert_eq!(ckdevnetsol_symbol, "ckDevnetSOL");
+
+    let cksol_symbol: String = decode_query(
+        &env,
+        env.canister_ids.cksol_ledger,
+        "icrc1_symbol",
+        encode_one(()).unwrap(),
+    );
+    assert_eq!(cksol_symbol, "ckSOL");
 
     let cketh_symbol: String = decode_query(
         &env,

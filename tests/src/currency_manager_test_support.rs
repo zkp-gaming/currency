@@ -22,7 +22,7 @@ pub struct CurrencyCase {
 fn recipient_subaccount(currency: Currency) -> Option<Vec<u8>> {
     match currency {
         Currency::ICP | Currency::TestICP => None,
-        Currency::BTC | Currency::CKETHToken(_) => Some(default_subaccount()),
+        Currency::BTC | Currency::CKETHToken(_) | Currency::CKSOLToken(_) => Some(default_subaccount()),
         Currency::GenericICRC1(_) => unreachable!("generic currencies are not covered here"),
     }
 }

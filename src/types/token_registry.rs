@@ -6,7 +6,7 @@ use std::borrow::Cow;
 
 use crate::{
     currency_error::CurrencyError, 
-    types::currency::{Currency, CKTokenSymbol},
+    types::currency::{Currency, CKSOLTokenSymbol, CKTokenSymbol},
 };
 
 use super::{canister_wallets::icrc1_token_wallet::{GenericICRC1TokenWallet, ICRC1TokenMetadata}, currency::Token};
@@ -100,6 +100,8 @@ impl ICRC1TokenRegistry {
             "ckUSDT" => Some(Currency::CKETHToken(CKTokenSymbol::USDT)),
             "ckSepoliaETH" => Some(Currency::CKETHToken(CKTokenSymbol::SepoliaETH)),
             "ckSepoliaUSDC" => Some(Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC)),
+            "ckSOL" => Some(Currency::CKSOLToken(CKSOLTokenSymbol::SOL)),
+            "ckDevnetSOL" => Some(Currency::CKSOLToken(CKSOLTokenSymbol::DevnetSOL)),
             // For any other token, we can create a new Currency variant
             // This would require extending your Currency enum
             symbol => Some(Currency::GenericICRC1(Token::from_string(*ledger_id, symbol, metadata.decimals))),
