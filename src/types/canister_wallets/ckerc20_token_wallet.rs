@@ -173,7 +173,7 @@ impl CKERC20TokenWallet {
     async fn get_erc20_withdrawal_fee(&self) -> Result<u128, CurrencyError> {
         let response = ic_cdk::call::Call::unbounded_wait(
             self.config.minter_id,
-            "eip1559_transaction_price",
+            "eip_1559_transaction_price",
         )
         .with_arg(Eip1559TransactionPriceArg {
             ckerc20_ledger_id: self.config.ledger_id,
