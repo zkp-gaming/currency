@@ -252,7 +252,7 @@ impl CKERC20TokenWallet {
 
             // Approve minter to burn ckETH for gas fees
             let gas_fee = self.get_erc20_withdrawal_fee().await?;
-            self.approve(cketh_ledger_id, self.config.minter_id, gas_fee, None, None, None)
+            self.approve(cketh_ledger_id, self.config.minter_id, gas_fee * 2, None, None, None)
                 .await?;
 
             // Approve minter to burn the ckERC20 tokens
