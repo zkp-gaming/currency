@@ -520,7 +520,9 @@ impl CKERC20TokenWallet {
             amount,
             expected_allowance: None,
             expires_at: None,
-            fee: Some(self.config.fee),
+            // None → ledger uses its own icrc1_fee. Required because this helper
+            // is called against multiple ledgers (own + ckETH for gas) whose fees differ.
+            fee: None,
             memo,
             from_subaccount,
             created_at_time,
