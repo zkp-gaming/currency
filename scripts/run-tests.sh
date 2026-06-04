@@ -7,7 +7,7 @@ POCKET_IC_BIN="${REPO_ROOT}/tests/pocket-ic"
 POCKET_IC_SERVER_VERSION="13.0.0"
 WASM_DIR="${REPO_ROOT}/tests/wasms"
 LOCAL_CANISTER_TARGET_DIR="${REPO_ROOT}/tests/target/canisters"
-LOCAL_CANISTER_MANIFEST="${REPO_ROOT}/tests/canisters/currency_manager_host/Cargo.toml"
+LOCAL_CANISTER_DIR="${REPO_ROOT}/tests/canisters"
 DEFAULT_IC_RELEASE="03dd6ee6de80c2202f66948692c69c61eb6af54d"
 IC_RELEASE="${IC_RELEASE:-$DEFAULT_IC_RELEASE}"
 BASE_URL="https://download.dfinity.systems/ic/${IC_RELEASE}/canisters"
@@ -118,11 +118,13 @@ ensure_all_remote_wasms() {
 
 build_local_canisters() {
   echo "Building local PocketIC test canisters"
-  cargo build \
-    --target wasm32-unknown-unknown \
-    --release \
-    --target-dir "${LOCAL_CANISTER_TARGET_DIR}" \
-    --manifest-path "${LOCAL_CANISTER_MANIFEST}"
+  for manifest in "${LOCAL_CANISTER_DIR}"/*/Cargo.toml; do
+    cargo build \
+      --target wasm32-unknown-unknown \
+      --release \
+      --target-dir "${LOCAL_CANISTER_TARGET_DIR}" \
+      --manifest-path "${manifest}"
+  done
 }
 
 ensure_pocket_ic

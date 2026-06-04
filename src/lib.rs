@@ -1,6 +1,7 @@
 pub mod ckbtc_ledger_canister_interface;
 pub mod ckbtc_minter_canister_interface;
 pub mod cketh_minter_canister_interface;
+pub mod cksol_minter_canister_interface;
 pub mod ckusdc_canister_interface;
 pub mod currency_error;
 pub mod icrc1_types;

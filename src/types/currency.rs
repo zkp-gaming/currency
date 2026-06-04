@@ -57,11 +57,18 @@ pub enum CKTokenSymbol {
     SepoliaUSDC,
 }
 
+#[derive(Debug, Clone, Serialize, CandidType, Deserialize, PartialEq, Eq, Copy, Hash)]
+pub enum CKSOLTokenSymbol {
+    DevnetSOL,
+    SOL,
+}
+
 #[derive(Debug, Clone, Serialize, CandidType, Deserialize, PartialEq, Eq, Hash, Copy)]
 pub enum Currency {
     ICP,
     TestICP,
     CKETHToken(CKTokenSymbol),
+    CKSOLToken(CKSOLTokenSymbol),
     BTC,
     GenericICRC1(Token)
 }
@@ -75,6 +82,7 @@ impl Currency {
                 CKTokenSymbol::ETH | CKTokenSymbol::SepoliaETH => 18,
                 _ => 6,
             },
+            Currency::CKSOLToken(_) => 9,
             Currency::BTC => 8,
             Currency::GenericICRC1(token) => token.decimals,
         }
@@ -87,6 +95,8 @@ impl std::fmt::Display for Currency {
             Currency::ICP => write!(f, "ICP"),
             Currency::TestICP => write!(f, "TestICP"),
             Currency::CKETHToken(ck_token) => write!(f, "{:?}", ck_token),
+            Currency::CKSOLToken(CKSOLTokenSymbol::DevnetSOL) => write!(f, "ckDevnetSOL"),
+            Currency::CKSOLToken(CKSOLTokenSymbol::SOL) => write!(f, "ckSOL"),
             Currency::BTC => write!(f, "BTC"),
             Currency::GenericICRC1(token) => write!(f, "{}", token.symbol_to_string()),
         }
@@ -105,6 +115,8 @@ impl From<u8> for Currency {
             5 => Currency::TestICP,
             6 => Currency::CKETHToken(CKTokenSymbol::SepoliaETH),
             7 => Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC),
+            9 => Currency::CKSOLToken(CKSOLTokenSymbol::DevnetSOL),
+            10 => Currency::CKSOLToken(CKSOLTokenSymbol::SOL),
             _ => panic!("Invalid currency value"),
         }
     }
@@ -120,6 +132,10 @@ impl From<Currency> for u8 {
                 CKTokenSymbol::ETH => 3,
                 CKTokenSymbol::SepoliaETH => 6,
                 CKTokenSymbol::SepoliaUSDC => 7,
+            },
+            Currency::CKSOLToken(token) => match token {
+                CKSOLTokenSymbol::DevnetSOL => 9,
+                CKSOLTokenSymbol::SOL => 10,
             },
             Currency::BTC => 4,
             Currency::TestICP => 5,

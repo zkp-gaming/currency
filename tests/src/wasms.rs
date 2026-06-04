@@ -12,6 +12,7 @@ lazy_static! {
     pub static ref ICRC1_LEDGER: CanisterWasm = get_remote_wasm("ic-icrc1-ledger");
     pub static ref ICRC1_LEDGER_U256: CanisterWasm = get_remote_wasm("ic-icrc1-ledger-u256");
     pub static ref CURRENCY_MANAGER_HOST: CanisterWasm = get_local_wasm("currency_manager_host");
+    pub static ref CKSOL_MINTER_MOCK: CanisterWasm = get_local_wasm("cksol_minter_mock");
 }
 
 fn get_canister_wasm<P: AsRef<Path>>(path: P) -> CanisterWasm {

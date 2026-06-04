@@ -2,6 +2,9 @@ use std::cell::RefCell;
 
 use candid::{CandidType, Principal};
 use currency::{
+    cksol_minter_canister_interface::{
+        CKSOLMinterInfo, CKSOLWithdrawalStatus, ProcessDepositSuccess, WithdrawToSolSuccess,
+    },
     currency_error::CurrencyError,
     state::TransactionState,
     types::{
@@ -26,7 +29,10 @@ pub struct AccountView {
 async fn manager_for_currency(currency: &Currency) -> Result<CurrencyManager, CurrencyError> {
     let mut manager = CurrencyManager::new();
 
-    if matches!(currency, Currency::CKETHToken(_) | Currency::GenericICRC1(_)) {
+    if matches!(
+        currency,
+        Currency::CKETHToken(_) | Currency::CKSOLToken(_) | Currency::GenericICRC1(_)
+    ) {
         manager.add_currency(*currency).await?;
     }
 
@@ -142,6 +148,64 @@ async fn approve_allowance(
         .await
 }
 
+#[update]
+async fn get_cksol_minter_info(currency: Currency) -> Result<CKSOLMinterInfo, CurrencyError> {
+    manager_for_currency(&currency)
+        .await?
+        .get_cksol_minter_info(&currency)
+        .await
+}
+
+#[update]
+async fn get_cksol_deposit_address(
+    currency: Currency,
+    owner: Principal,
+    subaccount: Option<Vec<u8>>,
+) -> Result<String, CurrencyError> {
+    manager_for_currency(&currency)
+        .await?
+        .get_cksol_deposit_address(&currency, owner, subaccount)
+        .await
+}
+
+#[update]
+async fn process_cksol_deposit(
+    currency: Currency,
+    owner: Principal,
+    subaccount: Option<Vec<u8>>,
+    signature: String,
+    cycles: u128,
+) -> Result<ProcessDepositSuccess, CurrencyError> {
+    manager_for_currency(&currency)
+        .await?
+        .process_cksol_deposit(&currency, owner, subaccount, signature, cycles)
+        .await
+}
+
+#[update]
+async fn withdraw_to_sol_address(
+    currency: Currency,
+    address: String,
+    amount: u64,
+    from_subaccount: Option<Vec<u8>>,
+) -> Result<WithdrawToSolSuccess, CurrencyError> {
+    manager_for_currency(&currency)
+        .await?
+        .withdraw_to_sol_address(&currency, address, amount, from_subaccount)
+        .await
+}
+
+#[update]
+async fn check_sol_withdrawal_status(
+    currency: Currency,
+    block_index: u64,
+) -> Result<CKSOLWithdrawalStatus, CurrencyError> {
+    manager_for_currency(&currency)
+        .await?
+        .check_sol_withdrawal_status(&currency, block_index)
+        .await
+}
+
 #[query]
 fn get_canister_principal() -> Principal {
     ic_cdk::api::canister_self()
@@ -155,7 +219,11 @@ fn get_account_for_currency(currency: Currency) -> AccountView {
             owner: state.owner,
             subaccount: None,
         },
-        Currency::ICP | Currency::TestICP | Currency::CKETHToken(_) | Currency::GenericICRC1(Token { .. }) => AccountView {
+        Currency::ICP
+        | Currency::TestICP
+        | Currency::CKETHToken(_)
+        | Currency::CKSOLToken(_)
+        | Currency::GenericICRC1(Token { .. }) => AccountView {
             owner: state.owner,
             subaccount: Some(state.default_subaccount.0.to_vec()),
         },

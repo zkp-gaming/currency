@@ -1,8 +1,11 @@
 use candid::{decode_one, encode_args, utils::ArgumentEncoder, CandidType, Deserialize, Nat, Principal};
 use currency::{
+    cksol_minter_canister_interface::{
+        CKSOLMinterInfo, CKSOLWithdrawalStatus, ProcessDepositSuccess, WithdrawToSolSuccess,
+    },
     currency_error::CurrencyError,
     icrc1_types::{Account, Allowance, AllowanceArgs, ApproveArgs, ApproveError, TransferArg, TransferErrorIcrc1},
-    types::currency::CKTokenSymbol,
+    types::currency::{CKSOLTokenSymbol, CKTokenSymbol},
     Currency,
 };
 use ic_ledger_types::{
@@ -80,6 +83,8 @@ pub fn ledger_id_for_currency(env: &TestEnv, currency: Currency) -> Principal {
         Currency::CKETHToken(CKTokenSymbol::USDC) => env.canister_ids.ckusdc_ledger,
         Currency::CKETHToken(CKTokenSymbol::USDT) => env.canister_ids.ckusdt_ledger,
         Currency::CKETHToken(CKTokenSymbol::ETH) => env.canister_ids.cketh_ledger,
+        Currency::CKSOLToken(CKSOLTokenSymbol::DevnetSOL) => env.canister_ids.ckdevnetsol_ledger,
+        Currency::CKSOLToken(CKSOLTokenSymbol::SOL) => env.canister_ids.cksol_ledger,
         Currency::CKETHToken(CKTokenSymbol::SepoliaETH) => env.canister_ids.cksepoliaeth_ledger,
         Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC) => {
             env.canister_ids.cksepoliausdc_ledger
@@ -95,6 +100,8 @@ pub fn fee_for_currency(currency: Currency) -> u128 {
         Currency::CKETHToken(CKTokenSymbol::USDC) => 10_000,
         Currency::CKETHToken(CKTokenSymbol::USDT) => 10_000,
         Currency::CKETHToken(CKTokenSymbol::ETH) => 2_000_000_000_000,
+        Currency::CKSOLToken(CKSOLTokenSymbol::DevnetSOL) => 10_000,
+        Currency::CKSOLToken(CKSOLTokenSymbol::SOL) => 10_000,
         Currency::CKETHToken(CKTokenSymbol::SepoliaETH) => 10_000_000_000,
         Currency::CKETHToken(CKTokenSymbol::SepoliaUSDC) => 4_000,
         Currency::GenericICRC1(_) => panic!("GenericICRC1 is not covered in these tests"),
@@ -120,7 +127,7 @@ pub fn fund_account(
             subaccount,
             amount,
         ),
-        Currency::BTC | Currency::CKETHToken(_) => fund_principal_with_icrc1(
+        Currency::BTC | Currency::CKETHToken(_) | Currency::CKSOLToken(_) => fund_principal_with_icrc1(
             env,
             ledger_id_for_currency(env, currency),
             recipient,
@@ -480,6 +487,81 @@ pub fn manager_approve_allowance_with_args(
             memo,
             created_at_time,
         ),
+    )
+}
+
+pub fn manager_get_cksol_minter_info(
+    env: &TestEnv,
+    currency: Currency,
+) -> Result<CKSOLMinterInfo, CurrencyError> {
+    update_call(
+        env,
+        env.canister_ids.currency_manager_host,
+        Principal::anonymous(),
+        "get_cksol_minter_info",
+        (currency,),
+    )
+}
+
+pub fn manager_get_cksol_deposit_address(
+    env: &TestEnv,
+    currency: Currency,
+    owner: Principal,
+    subaccount: Option<Vec<u8>>,
+) -> Result<String, CurrencyError> {
+    update_call(
+        env,
+        env.canister_ids.currency_manager_host,
+        Principal::anonymous(),
+        "get_cksol_deposit_address",
+        (currency, owner, subaccount),
+    )
+}
+
+pub fn manager_process_cksol_deposit(
+    env: &TestEnv,
+    currency: Currency,
+    owner: Principal,
+    subaccount: Option<Vec<u8>>,
+    signature: String,
+    cycles: u128,
+) -> Result<ProcessDepositSuccess, CurrencyError> {
+    update_call(
+        env,
+        env.canister_ids.currency_manager_host,
+        Principal::anonymous(),
+        "process_cksol_deposit",
+        (currency, owner, subaccount, signature, cycles),
+    )
+}
+
+pub fn manager_withdraw_to_sol_address(
+    env: &TestEnv,
+    currency: Currency,
+    address: String,
+    amount: u64,
+    from_subaccount: Option<Vec<u8>>,
+) -> Result<WithdrawToSolSuccess, CurrencyError> {
+    update_call(
+        env,
+        env.canister_ids.currency_manager_host,
+        Principal::anonymous(),
+        "withdraw_to_sol_address",
+        (currency, address, amount, from_subaccount),
+    )
+}
+
+pub fn manager_check_sol_withdrawal_status(
+    env: &TestEnv,
+    currency: Currency,
+    block_index: u64,
+) -> Result<CKSOLWithdrawalStatus, CurrencyError> {
+    update_call(
+        env,
+        env.canister_ids.currency_manager_host,
+        Principal::anonymous(),
+        "check_sol_withdrawal_status",
+        (currency, block_index),
     )
 }
 
